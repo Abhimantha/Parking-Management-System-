@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Audit Logs')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'audit')}">
+<section class="container-fluid py-3">
+    <h1 class="h4 mb-3"><i class="bi bi-clipboard-data me-2"></i>Audit Logs</h1>
+
+    <form id="filters" class="row g-2 align-items-end mb-3">
+        <div class="col-12 col-sm-2">
+            <label class="form-label">Action</label>
+            <input id="fAction" class="form-control" placeholder="e.g. LOGIN_SUCCESS">
+        </div>
+        <div class="col-12 col-sm-2">
+            <label class="form-label">User</label>
+            <input id="fUser" class="form-control" placeholder="email or name">
+        </div>
+        <div class="col-6 col-sm-2">
+            <label class="form-label">Status</label>
+            <input id="fStatus" type="number" class="form-control" placeholder="200">
+        </div>
+        <div class="col-12 col-sm-3">
+            <label class="form-label">Path contains</label>
+            <input id="fPath" class="form-control" placeholder="/api/">
+        </div>
+        <div class="col-6 col-sm-3">
+            <label class="form-label">Date from</label>
+            <input id="fStart" type="datetime-local" class="form-control">
+        </div>
+        <div class="col-6 col-sm-3">
+            <label class="form-label">Date to</label>
+            <input id="fEnd" type="datetime-local" class="form-control">
+        </div>
+        <div class="col-6 col-sm-2">
+            <label class="form-label">Limit</label>
+            <input id="fLimit" type="number" class="form-control" value="200" min="1" max="1000">
+        </div>
+        <div class="col-12 col-sm-2">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel me-1"></i>Apply
+            </button>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead class="table-light">
+            <tr>
+                <th>Time</th><th>Action</th><th>User</th><th>Status</th><th>Method</th>
+                <th>Path</th><th>IP</th><th>Agent</th><th>Message</th>
+            </tr>
+            </thead>
+            <tbody id="rows"><tr><td colspan="9" class="text-muted">Loading…</td></tr></tbody>
+        </table>
+    </div>
+</section>
+
+<script>
+    (async function(){
+      const q = (id)=>document.getElementById(id);
+      const rows = q('rows');
+
+      async function load() {
+        const params = new URLSearchParams();
+        const limit = Math.max(1, Math.min(1000, +(q('fLimit').value||200)));
+        params.set('limit', limit);
+
+        const action = q('fAction').value?.trim(); if (action) params.set('action', action);
+        const user   = q('fUser').value?.trim();   if (user)   params.set('username', user);
+        const status = q('fStatus').value?.trim(); if (status) params.set('status', status);
+        const path   = q('fPath').value?.trim();   if (path)   params.set('pathLike', path);
+
+        const s = q('fStart').value; if (s) params.set('start', new Date(s).toISOString());
+        const e = q('fEnd').value;   if (e) params.set('end',   new Date(e).toISOString());
+
+        try {
+          const data = await api.get('/api/audit/logs?' + params.toString());
+          if (!Array.isArray(data) || data.length === 0) {
+            rows.innerHTML = `<tr><td colspan="9" class="text-center text-muted">No results.</td></tr>`;
+            return;
+          }
+          rows.innerHTML = data.map(a => `
+            <tr>
+              <td>${fmtDate(a.ts)}</td>
+              <td><span class="badge text-bg-secondary">${escapeHtml(a.action||'')}</span></td>
+              <td>${escapeHtml(a.username||'')}</td>
+              <td>${a.status ?? ''}</td>
+              <td>${escapeHtml(a.method||'')}</td>
+              <td class="text-break">${escapeHtml(a.path||'')}</td>
+              <td>${escapeHtml(a.ip||'')}</td>
+              <td class="text-truncate" style="max-width:220px" title="${escapeAttr(a.userAgent||'')}">${escapeHtml(a.userAgent||'')}</td>
+              <td class="text-truncate" style="max-width:280px" title="${escapeAttr(a.message||'')}">${escapeHtml(a.message||'')}</td>
+            </tr>
+          `).join('');
+        } catch (e) {
+          rows.innerHTML = `<tr><td colspan="9" class="text-danger">Failed to load: ${escapeHtml(e.message||e)}</td></tr>`;
+        }
+      }
+
+      document.getElementById('filters').addEventListener('submit', (ev)=>{ ev.preventDefault(); load(); });
+      load();
+    })();
+</script>
+</body>
+</html>

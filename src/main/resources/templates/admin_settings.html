@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{fragments/layout :: head('Admin Settings')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'settings')}">
+<section>
+
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h1 class="h3 mb-1"><i class="bi bi-shield-lock me-2"></i>Admin — System Settings</h1>
+            <div class="text-muted">Configure core features and policies. Audit logs remain immutable by design.</div>
+        </div>
+    </div>
+
+    <!-- flash messages (unchanged) -->
+    <div th:if="${param.msg}" class="alert alert-success" th:text="${param.msg}">Saved</div>
+    <div th:if="${param.err}" class="alert alert-danger" th:text="${param.err}">Error</div>
+
+    <!-- SETTINGS FORM (same action + object + fields) -->
+    <form th:action="@{/admin/settings}" method="post" th:object="${s}" class="card shadow-sm border-0">
+        <div class="card-body">
+            <div class="row g-4">
+                <!-- Core Features -->
+                <div class="col-lg-6">
+                    <h2 class="h6 text-uppercase text-muted mb-2">Core Features</h2>
+                    <div class="border rounded-3 p-3">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" th:field="*{enableReservations}" id="enableReservations">
+                            <label class="form-check-label" for="enableReservations">Enable Reservations</label>
+                            <div class="form-text">Allow drivers to browse availability and create reservations.</div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" th:field="*{enablePayments}" id="enablePayments">
+                            <label class="form-check-label" for="enablePayments">Enable Payments</label>
+                            <div class="form-text">Collect advances and settle balances through the app.</div>
+                        </div>
+
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" th:field="*{allowCancellation}" id="allowCancellation">
+                            <label class="form-check-label" for="allowCancellation">Allow Reservation/Payment Cancellation</label>
+                            <div class="form-text">Permit cancellations based on your policy.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Policy & Visibility -->
+                <div class="col-lg-6">
+                    <h2 class="h6 text-uppercase text-muted mb-2">Policy & Visibility</h2>
+                    <div class="border rounded-3 p-3">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" th:field="*{requireCancellationReason}" id="requireCancellationReason">
+                            <label class="form-check-label" for="requireCancellationReason">Require Cancellation Reason</label>
+                            <div class="form-text">Capture a reason whenever a booking/payment is cancelled.</div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" th:field="*{showReportsToDrivers}" id="showReportsToDrivers">
+                            <label class="form-check-label" for="showReportsToDrivers">Show “Reports” to Drivers</label>
+                            <div class="form-text">Expose read-only summaries to the Driver role.</div>
+                        </div>
+
+                        <div class="">
+                            <label class="form-label" for="refundWindowHours">Refund Window (hours)</label>
+                            <input class="form-control" id="refundWindowHours" type="number" min="1" th:field="*{refundWindowHours}">
+                            <div class="form-text">Time window during which a refund is eligible.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info note (read-only, no bindings) -->
+            <div class="alert alert-info d-flex align-items-start gap-2 mt-4 mb-0">
+                <i class="bi bi-journal-text mt-1"></i>
+                <div>
+                    <strong>Audit trail:</strong> log entries are created automatically for significant actions
+                    (login, reservation changes, slot updates), are immutable, and are purged only by retention policy.
+                </div>
+            </div>
+        </div>
+
+        <div class="card-footer bg-light d-flex justify-content-end">
+            <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button class="btn btn-primary" type="submit">
+                <i class="bi bi-check2-circle me-1"></i> Save
+            </button>
+        </div>
+    </form>
+
+</section>
+</body>
+</html>

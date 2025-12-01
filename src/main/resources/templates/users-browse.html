@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('All Users (Read-only)')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'users')}">
+<section>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h1 class="h3 m-0">Users (Read-only)</h1>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                    <tr>
+                        <th>#</th><th>Username</th><th>Email</th><th>Role</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="u : ${users}">
+                        <td th:text="${u.id}">1</td>
+                        <td th:text="${u.username}">name</td>
+                        <td th:text="${u.email}">email</td>
+                        <td><span class="badge"
+                                  th:classappend="${u.role.name()=='ADMIN' ? ' text-bg-danger' : (u.role.name()=='MANAGER' ? ' text-bg-primary' : ' text-bg-secondary')}"
+                                  th:text="${u.role}">ROLE</span></td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(users)}">
+                        <td colspan="4" class="text-center text-muted py-4">No users.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="small text-muted">Admins & Managers can view this list. (Edits still via Admin Users page.)</div>
+        </div>
+    </div>
+</section>
+</body>
+</html>

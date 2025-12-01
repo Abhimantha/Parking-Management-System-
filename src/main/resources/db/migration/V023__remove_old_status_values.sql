@@ -1,0 +1,3 @@
+-- This migration runs after V022 to ensure all data has been migrated
+-- No SQL changes needed here, but this serves as a checkpoint
+-- The old PENDING/RESERVED values can now be safely removed from the enum

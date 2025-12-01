@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:http="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Users')}">
+    <meta name="_csrf" th:if="${_csrf}" th:content="${_csrf.token}" />
+    <meta name="_csrf_header" th:if="${_csrf}" th:content="${_csrf.headerName}" />
+</head>
+
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'users')}">
+<section>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h1 class="h3 m-0">User Management</h1>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal" onclick="openUserModal()">Add User</button>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                    <tr>
+                        <th>#</th><th>Username</th><th>Email</th><th>Role</th><th class="text-end">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody id="userRows"><tr><td colspan="5">Loading…</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="userModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" onsubmit="saveUser(event)">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="userModalTitle">Add User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body row g-3">
+                    <input type="hidden" id="userId">
+                    <div class="col-12">
+                        <label class="form-label">Username</label>
+                        <input id="username" class="form-control" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Email</label>
+                        <input id="email" type="email" class="form-control" required>
+                    </div>
+                    <!-- Modal password input: make it optional -->
+                    <div class="col-12">
+                        <label class="form-label">Password</label>
+                        <input id="password" type="password" class="form-control" placeholder="Leave blank to keep current">
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Role</label>
+                        <select id="role" class="form-select" required>
+                            <option value="DRIVER">DRIVER</option>
+                            <option value="MANAGER">MANAGER</option>
+                            <option value="ADMIN">ADMIN</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+</body>
+</html>
+<script>
+    let userModal;
+    document.addEventListener('DOMContentLoaded', async () => {
+      userModal = new bootstrap.Modal('#userModal');
+      await loadUsers();
+    });
+
+    async function loadUsers() {
+      try {
+        const data = await api.get('/api/users');
+        const rows = data.map(u => `
+          <tr>
+            <td>${u.id}</td>
+            <td>${escapeHtml(u.username)}</td>
+            <td>${escapeHtml(u.email)}</td>
+            <td><span class="badge ${u.role==='ADMIN'?'text-bg-danger':u.role==='MANAGER'?'text-bg-primary':'text-bg-secondary'}">${u.role}</span></td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-outline-primary me-2" onclick='editUser(${JSON.stringify(u)})'>Edit</button>
+              <button class="btn btn-sm btn-outline-danger" onclick="removeUser(${u.id})">Delete</button>
+            </td>
+          </tr>`).join('');
+        byId('userRows').innerHTML = rows || `<tr><td colspan="5">No users yet</td></tr>`;
+      } catch (e) {
+        byId('userRows').innerHTML = `<tr><td colspan="5" class="text-danger">Failed to load users: ${escapeHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    function openUserModal() {
+      byId('userModalTitle').textContent = 'Add User';
+      byId('userId').value = '';
+      byId('username').value = '';
+      byId('email').value = '';
+      byId('password').value = '';
+      byId('role').value = 'DRIVER';
+    }
+
+    function editUser(u) {
+      byId('userModalTitle').textContent = 'Edit User';
+      byId('userId').value = u.id;
+      byId('username').value = u.username;
+      byId('email').value = u.email;
+      // IMPORTANT: do NOT prefill password; leave empty to keep existing password
+      byId('password').value = '';
+      byId('role').value = u.role;
+      userModal.show();
+    }
+
+    async function saveUser(e) {
+      e.preventDefault();
+      try {
+        const pwd = val('password').trim();
+        const dto = {
+          username: val('username'),
+          email: val('email'),
+          role: val('role')
+        };
+        if (pwd) dto.password = pwd; // only send if provided
+
+        const id = val('userId');
+        if (id) await api.put(`/api/users/${id}`, dto);
+        else    await api.post('/api/users', { ...dto, password: pwd || undefined });
+
+        toast('Saved!');
+        userModal.hide();
+        await loadUsers();
+      } catch (e2) {
+        toast(e2.message || 'Save failed', false);
+      }
+    }
+
+    async function removeUser(id) {
+      try {
+        if (!confirm('Delete this user?')) return;
+        await api.delete(`/api/users/${id}`);
+        toast('Deleted');
+        await loadUsers();
+      } catch (e) {
+        toast(e.message || 'Delete failed', false);
+      }
+    }
+
+    function escapeHtml(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+</script>
+
