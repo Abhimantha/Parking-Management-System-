@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Pricing & Promos')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'pricing')}">
+<section>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h1 class="h3 m-0"><i class="bi bi-cash-coin me-2"></i>Pricing & Promos</h1>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#ruleModal" onclick="openCreate()">
+            <i class="bi bi-plus-lg me-1"></i> New Promo
+        </button>
+    </div>
+
+    <div class="card shadow-sm border-0 card-lift">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table align-middle table-hover mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Promo code</th>
+                        <th>Active from</th>
+                        <th>Active to</th>
+                        <th>Discount</th>
+                        <th>Enabled</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody id="rows"><tr><td colspan="7">Loading…</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="ruleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <form class="modal-content" onsubmit="saveRule(event)">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="ruleTitle">New promo</h5>
+                    <button class="btn-close" type="button" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="rId">
+                    <div class="vstack gap-3">
+                        <div>
+                            <label class="form-label">Name</label>
+                            <input id="rName" class="form-control" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Promo code (optional)</label>
+                            <input id="rPromo" class="form-control" placeholder="e.g. WEEKEND10">
+                            <div class="form-text">Code is stored in the name as <code>[CODE:YOURCODE]</code> (no DB change).</div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col">
+                                <label class="form-label">Active from</label>
+                                <input id="rFrom" type="date" class="form-control" aria-describedby="rFromErr">
+                                <small id="rFromErr" class="field-error"></small>
+                            </div>
+                            <div class="col">
+                                <label class="form-label">Active to</label>
+                                <input id="rTo" type="date" class="form-control" aria-describedby="rToErr">
+                                <small id="rToErr" class="field-error"></small>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label">Discount (%)</label>
+                            <input id="rValue" type="number" step="0.01" min="0" max="100" class="form-control" value="0">
+                            <div class="form-text">Example: 10 = 10% off.</div>
+                        </div>
+                        <div>
+                            <label class="form-label">Enabled</label>
+                            <select id="rEnabled" class="form-select">
+                                <option value="true">true</option>
+                                <option value="false">false</option>
+                            </select>
+                        </div>
+                        <div class="text-muted small">
+                            <i class="bi bi-info-circle me-1"></i>
+                            <strong>Rules:</strong> Active from must be today or later. Active to must be on or after Active from.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Close</button>
+                    <button class="btn btn-primary" type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ------- tiny helpers -------
+        const byId = (id) => document.getElementById(id);
+        const val  = (id) => (byId(id)?.value ?? '').trim();
+
+        function readCookie(name){
+            const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([$?*|{}\]\\^])/g,'\\$1') + '=([^;]*)'));
+            return m ? decodeURIComponent(m[1]) : null;
+        }
+        function csrfInfo(){
+            const token  = document.querySelector('meta[name="_csrf"]')?.content || readCookie('XSRF-TOKEN');
+            const header = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
+            const param  = document.querySelector('meta[name="_csrf_parameter"]')?.content || '_csrf';
+            return { token, header, param };
+        }
+        function baseHeaders(){
+            const h = { 'Accept':'application/json' };
+            const { token, header } = csrfInfo();
+            if (token) h[header] = token;
+            return h;
+        }
+        function jsonHeaders(){ const h = baseHeaders(); h['Content-Type']='application/json'; return h; }
+        async function handleResponse(res){
+            const txt = await res.text();
+            if (!res.ok) { try { const j = JSON.parse(txt); throw new Error(j.message||txt); } catch { throw new Error(txt||res.statusText); } }
+            if (!txt) return null; try { return JSON.parse(txt); } catch { return txt; }
+        }
+        async function apiGet(u){
+            return handleResponse(await fetch(u, { headers: baseHeaders(), credentials:'same-origin' }));
+        }
+        async function apiSend(u, method, body){
+            const { token, param } = csrfInfo();
+            const url = token ? `${u}${u.includes('?')?'&':'?'}${param}=${encodeURIComponent(token)}` : u;
+            return handleResponse(await fetch(url, {
+                method, headers: jsonHeaders(), body: JSON.stringify(body), credentials:'same-origin'
+            }));
+        }
+        async function apiPatch(u){
+            const { token, param } = csrfInfo();
+            const url = token ? `${u}${u.includes('?')?'&':'?'}${param}=${encodeURIComponent(token)}` : u;
+            return handleResponse(await fetch(url, { method:'PATCH', headers: baseHeaders(), credentials:'same-origin' }));
+        }
+        async function apiDelete(u){
+            const { token, param } = csrfInfo();
+            const url = token ? `${u}${u.includes('?')?'&':'?'}${param}=${encodeURIComponent(token)}` : u;
+            return handleResponse(await fetch(url, { method:'DELETE', headers: baseHeaders(), credentials:'same-origin' }));
+        }
+
+        // ------- page logic (GLOBAL) -------
+        let ruleModal;
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (window.bootstrap?.Modal) ruleModal = new bootstrap.Modal(byId('ruleModal'));
+            attachDateValidation(); // strict rules
+            await loadRules();
+        });
+
+        function fmtDate(s){ return s ?? '—'; }
+        function fmtPct(v){ const n = Number(v||0); return `${n.toFixed(2)}%`; }
+
+        async function loadRules(){
+            const tbody = byId('rows');
+            try{
+                const data = await apiGet('/api/pricing/rules');
+                if (!Array.isArray(data) || data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-muted">No promos yet.</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = data.map(r=>`
+              <tr>
+                <td>${r.name ?? ''}</td>
+                <td>${r.promoCode ?? ''}</td>
+                <td>${fmtDate(r.startDate)}</td>
+                <td>${fmtDate(r.endDate)}</td>
+                <td>${fmtPct(r.effectValue)}</td>
+                <td>
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" ${r.active ? 'checked' : ''}
+                      onchange="toggleActive(${r.id}, this.checked)">
+                  </div>
+                </td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-primary me-2"
+                    onclick='editRule(${JSON.stringify(r).replace(/'/g,"&#39;")})'>Edit</button>
+                  <button class="btn btn-sm btn-outline-danger" onclick="delRule(${r.id})">Delete</button>
+                </td>
+              </tr>`).join('');
+            }catch(e){
+                tbody.innerHTML = `<tr><td colspan="7" class="text-danger">Load failed: ${e.message||e}</td></tr>`;
+            }
+        }
+
+        // NOTE: expose EVERYTHING on window to avoid "not defined" errors.
+        window.openCreate = function openCreate(){
+            byId('ruleTitle').textContent = 'New promo';
+            ['rId','rName','rPromo','rFrom','rTo','rValue'].forEach(id => { const el = byId(id); if (el) el.value=''; });
+            byId('rEnabled').value = 'true';
+            clearDateValidation();
+            updateDateConstraints(); // will set min to today for rFrom
+        };
+
+        window.editRule = function editRule(r){
+            byId('ruleTitle').textContent = 'Edit promo';
+            byId('rId').value = r.id;
+            byId('rName').value = r.name || '';
+            byId('rPromo').value = r.promoCode || '';
+            byId('rFrom').value = r.startDate || '';
+            byId('rTo').value   = r.endDate || '';
+            byId('rValue').value = Number(r.effectValue || 0);
+            byId('rEnabled').value = r.active ? 'true' : 'false';
+            updateDateConstraints();
+            validateDateRange(); // enforce rules even when editing
+            ruleModal?.show();
+        };
+
+        window.buildDto = function buildDto(){
+            const startDate = val('rFrom') || null;
+            const endDate   = val('rTo')   || null;
+            const off = Number(val('rValue') || 0);
+            return {
+                ruleType: 'PROMO',
+                name: val('rName'),
+                promoCode: val('rPromo'),
+                startDate, endDate,
+                effectType: 'PERCENT',
+                effectValue: off,
+                active: (val('rEnabled') === 'true')
+            };
+        };
+
+        window.saveRule = async function saveRule(e){
+            e.preventDefault();
+            if (!validateDateRange(true)) return; // hard-stop on invalid dates
+
+            const id = val('rId');
+            const body = buildDto();
+            if (!body.name) { alert('Name required'); return; }
+            try{
+                if (id) await apiSend(`/api/pricing/${encodeURIComponent(id)}`, 'PUT', body);
+                else    await apiSend('/api/pricing', 'POST', body);
+                ruleModal?.hide();
+                await loadRules();
+            }catch(err){ alert('Save failed: ' + (err.message||err)); }
+        };
+
+        window.delRule = async function delRule(id){
+            if(!confirm('Delete this promo?')) return;
+            try { await apiDelete(`/api/pricing/${encodeURIComponent(id)}`); await loadRules(); }
+            catch(err){ alert('Delete failed: ' + (err.message||err)); }
+        };
+
+        window.toggleActive = async function toggleActive(id, on){
+            try { await apiPatch(`/api/pricing/${encodeURIComponent(id)}/active?active=${on}`); }
+            catch(err){ alert('Update failed: ' + (err.message||err)); await loadRules(); }
+        };
+
+        // ------- strict date validation -------
+        function todayISO(){
+            // local today in yyyy-mm-dd (no TZ drift)
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth()+1).padStart(2,'0');
+            const dd = String(now.getDate()).padStart(2,'0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+        function parseDateISO(s){
+            if(!s) return null;
+            const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+            if(!m) return null;
+            // normalize to local noon to avoid DST/tz boundary issues
+            const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0, 0);
+            return isNaN(d.getTime()) ? null : d;
+        }
+        function setFieldError(inputId, errId, msg){
+            const input = byId(inputId);
+            const err = byId(errId);
+            if(!input || !err) return;
+            input.setCustomValidity(msg || '');
+            input.setAttribute('aria-invalid', msg ? 'true' : 'false');
+            err.textContent = msg || '';
+        }
+        function clearDateValidation(){
+            setFieldError('rFrom','rFromErr','');
+            setFieldError('rTo','rToErr','');
+        }
+        function updateDateConstraints(){
+            const from = byId('rFrom'), to = byId('rTo');
+            if (!from || !to) return;
+            const today = todayISO();
+
+            // Start date cannot be in the past
+            from.min = today;
+
+            // End date must be on/after max(today, start)
+            const startVal = from.value || '';
+            const effectiveMinForEnd = startVal && startVal > today ? startVal : (startVal || today);
+            to.min = effectiveMinForEnd;
+
+            // Keep max cross-constraint to help UX; not strictly necessary, but useful if end is set first
+            from.max = to.value || '';
+        }
+        function validateDateRange(showAlert){
+            const fromVal = val('rFrom');
+            const toVal   = val('rTo');
+            const dFrom = parseDateISO(fromVal);
+            const dTo   = parseDateISO(toVal);
+            const dToday = parseDateISO(todayISO());
+
+            clearDateValidation();
+
+            // Format checks if present
+            if (fromVal && !dFrom) setFieldError('rFrom','rFromErr','Invalid date. Use YYYY-MM-DD.');
+            if (toVal   && !dTo)   setFieldError('rTo','rToErr','Invalid date. Use YYYY-MM-DD.');
+
+            // Business rule: start >= today
+            if (dFrom && dToday && dFrom.getTime() < dToday.getTime()){
+                setFieldError('rFrom','rFromErr','Active from cannot be in the past.');
+            }
+
+            // Business rule: end >= start (only when both present & valid)
+            if (dFrom && dTo && dTo.getTime() < dFrom.getTime()){
+                setFieldError('rFrom','rFromErr','Active from must be on/before Active to.');
+                setFieldError('rTo','rToErr','Active to must be on/after Active from.');
+            }
+
+            updateDateConstraints();
+
+            const ok = !byId('rFrom').validationMessage && !byId('rTo').validationMessage;
+            if (!ok && showAlert){
+                const msg = byId('rFrom').validationMessage || byId('rTo').validationMessage || 'Please correct the date range.';
+                alert(msg);
+            }
+            return ok;
+        }
+        function attachDateValidation(){
+            const from = byId('rFrom'), to = byId('rTo');
+            if (!from || !to) return;
+
+            // initialize constraints for a blank form
+            updateDateConstraints();
+
+            ['input','change','blur'].forEach(ev => {
+                from.addEventListener(ev, () => validateDateRange(false));
+                to.addEventListener(ev, () => validateDateRange(false));
+            });
+        }
+    </script>
+</section>
+
+<script src="/js/validate.js" defer></script>
+
+<form data-validate="booking" th:object="${req}" method="post">
+    <div>
+        <label>Username</label>
+        <input th:field="*{username}" required minlength="3" maxlength="50"
+               data-pattern="^[A-Za-z0-9_.-]+$"
+               data-msg-pattern="Use letters, numbers, underscore, dot or dash." />
+        <small class="field-error"></small>
+    </div>
+    <button>Submit</button>
+</form>
+
+<style>
+    .field-error{display:block;font-size:.85rem}
+    [aria-invalid="true"]{outline:1px solid #d33}
+</style>
+
+</body>
+</html>

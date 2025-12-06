@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('My Profile')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'profile')}">
+<section>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h1 class="h3 m-0"><i class="bi bi-person-circle me-2"></i>My Profile</h1>
+    </div>
+
+    <div th:if="${msg}" class="alert alert-success" th:text="${msg}"></div>
+    <div th:if="${err}" class="alert alert-danger" th:text="${err}"></div>
+
+    <div class="card shadow-sm border-0 card-lift">
+        <div class="card-body p-4">
+            <form method="post" th:action="@{/profile/update}" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Username</label>
+                    <input class="form-control" name="username" th:value="${me != null ? me.username : ''}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Email</label>
+                    <input class="form-control" th:value="${me != null ? me.email : ''}" disabled>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Phone</label>
+                    <input class="form-control" name="phone" th:value="${me != null ? me.phone : ''}" placeholder="+94 71 234 5678">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">NIC Number</label>
+                    <input class="form-control" name="nicNumber" th:value="${me != null ? me.nicNumber : ''}" placeholder="NIC / National ID">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Car Model</label>
+                    <input class="form-control" name="carModel" th:value="${me != null ? me.carModel : ''}" placeholder="e.g., Toyota Aqua">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Car Plate</label>
+                    <input class="form-control" name="carPlate" th:value="${me != null ? me.carPlate : ''}" placeholder="e.g., ABC-1234">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">New Password</label>
+                    <input type="password" class="form-control" name="newPassword" placeholder="Leave blank to keep current">
+                </div>
+
+                <div class="col-12">
+                    <button class="btn btn-primary" type="submit">Save changes</button>
+                    <a class="btn btn-outline-secondary ms-2" th:href="@{/}">Back</a>
+                </div>
+
+                <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function readCookie(name){
+          const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([$?*|{}\]\\^])/g,'\\$1') + '=([^;]*)'));
+          return m ? decodeURIComponent(m[1]) : null;
+        }
+
+        function csrfPair(){
+          // Prefer Thymeleaf metas (work even if HttpOnly cookie is used)
+          const token  = document.querySelector('meta[name="_csrf"]')?.content
+                      || document.querySelector('meta[name="csrf-token"]')?.content
+                      || readCookie('XSRF-TOKEN');                       // fallback if cookie repo is enabled
+          const header = document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
+          return token ? [header, token] : null;
+        }
+
+        function baseHeaders(){
+          const h = {'Accept':'application/json'};
+          const pair = csrfPair();
+          if (pair) h[pair[0]] = pair[1];
+          return h;
+        }
+
+        function jsonHeaders(){
+          const h = baseHeaders();
+          h['Content-Type'] = 'application/json';
+          return h;
+        }
+
+    </script>
+
+</section>
+</body>
+</html>

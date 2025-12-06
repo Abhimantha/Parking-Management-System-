@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Summary Reservations')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'reports')}">
+
+<section id="reports-root">
+    <style>
+        :root { --charm-radius: 16px; }
+        #reports-root .card-lift { border-radius: var(--charm-radius); }
+        #reports-root .charm-input { border-radius: 12px; padding-left: .9rem; padding-right: .9rem; }
+        #reports-root .btn.charm { border-radius: 999px; padding-left: 1rem; padding-right: 1rem; }
+        #reports-root .hero {
+            background: linear-gradient(135deg, rgba(99,102,241,.18), rgba(16,185,129,.18));
+            border-radius: var(--charm-radius);
+            padding: 1rem 1.25rem;
+        }
+        [data-bs-theme='light'] #reports-root .hero { background: linear-gradient(135deg, rgba(99,102,241,.08), rgba(16,185,129,.08)); }
+        #reports-root .card-title { color: var(--bs-body-color); }
+        #reports-root .container-narrow { max-width: 780px; margin-left: auto; margin-right: auto; }
+    </style>
+
+    <div class="hero mb-3 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-ui-checks"></i>
+            <h1 class="h5 mb-0">Summary Reservations</h1>
+        </div>
+        <a class="btn btn-outline-secondary charm" th:href="@{/reports}"><i class="bi bi-arrow-left-short me-1"></i>Back</a>
+    </div>
+
+    <div class="container-narrow">
+        <div class="card shadow-sm border-0 card-lift">
+            <div class="card-body">
+                <h5 class="card-title mb-3" th:text="${editForm} != null ? 'Edit Summary Reservation' : 'Create Summary Reservation'">Create Summary Reservation</h5>
+                <form th:if="${editForm} == null" th:action="@{/reports/summary}" method="post" class="row g-3">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <!-- External ID is auto-generated server-side; removed from form -->
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">User</label>
+                        <input class="form-control charm-input" type="text" name="user" placeholder="email or name" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Hours</label>
+                        <input class="form-control charm-input" type="number" name="hours" min="1" placeholder="e.g. 2" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Status</label>
+                        <select class="form-select charm-input" name="status">
+                            <option value="COMPLETE">Complete</option>
+                            <option value="ACTIVE">Active</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Date</label>
+                        <input class="form-control charm-input" type="date" name="date" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Amount</label>
+                        <input class="form-control charm-input" type="number" name="amount" step="0.01" min="0" placeholder="e.g. 25.50">
+                    </div>
+                    <div class="col-12 d-grid">
+                        <button type="submit" class="btn btn-primary charm"><i class="bi bi-plus-lg me-1"></i>Add summary</button>
+                    </div>
+                </form>
+
+                <form th:if="${editForm} != null" th:action="@{/reports/summary/edit}" method="post" class="row g-3">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <input type="hidden" name="id" th:value="${editId}">
+                    <!-- External ID is fixed and not editable -->
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">User</label>
+                        <input class="form-control charm-input" type="text" name="user" th:value="${editForm.user}" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Hours</label>
+                        <input class="form-control charm-input" type="number" name="hours" min="1" th:value="${editForm.hours}" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Status</label>
+                        <select class="form-select charm-input" name="status">
+                            <option value="COMPLETE" th:selected="${editForm.status?.name()}=='COMPLETE'">Complete</option>
+                            <option value="ACTIVE" th:selected="${editForm.status?.name()}=='ACTIVE'">Active</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Date</label>
+                        <input class="form-control charm-input" type="date" name="date" th:value="${editForm.date}" required>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Amount</label>
+                        <input class="form-control charm-input" type="number" name="amount" step="0.01" min="0" th:value="${editForm.amount}" placeholder="e.g. 25.50">
+                    </div>
+                    <div class="col-12 d-grid">
+                        <button type="submit" class="btn btn-primary charm"><i class="bi bi-save me-1"></i>Save changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function(){
+            const root = document.getElementById('reports-root');
+            if (!root) return;
+            const summaryDate = root.querySelector('form[action$="/reports/summary"] input[name="date"]');
+            function pad(n){ return String(n).padStart(2,'0'); }
+            function fmt(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+            try { if (summaryDate && !summaryDate.value) summaryDate.value = fmt(new Date()); } catch(_) {}
+        })();
+    </script>
+</section>
+
+</body>
+</html>
+

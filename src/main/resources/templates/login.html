@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Login')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, '')}">
+
+<section class="authx min-vh-100 d-flex align-items-center position-relative overflow-hidden">
+    <!-- ===================== Premium Background (scoped to .authx) ===================== -->
+    <style>
+        .authx{
+          --bg:#080b12; --ink:#eaf2ff; --muted:#9fb0c7;
+          --violet:#7c3aed; --cyan:#22d3ee; --blue:#3b82f6;
+          --spot-x:50%; --spot-y:50%;
+          color:var(--ink);
+          background: radial-gradient(1200px 700px at 20% 0%, #0b1630 0%, transparent 60%),
+                      radial-gradient(900px 560px at 80% 15%, #0c1326 0%, transparent 60%),
+                      radial-gradient(1400px 800px at 50% 100%, #0a1225 0%, transparent 70%),
+                      linear-gradient(#070a11, #0a0f1b 35%, #0a0c18);
+          isolation:isolate;
+        }
+
+        /* Mesh-Aurora ribbon (subtle, premium) */
+        .aurora{
+          position:absolute; inset:-30% -10% -20% -10%; z-index:0;
+          filter: blur(40px) saturate(1.15);
+          animation: hue 30s linear infinite;
+        }
+        .aurora::before,
+        .aurora::after{
+          content:""; position:absolute; inset:0;
+          background:
+            conic-gradient(from 120deg at 30% 20%, rgba(124,58,237,.32), transparent 65%),
+            conic-gradient(from -30deg at 70% 80%, rgba(34,211,238,.28), transparent 60%),
+            radial-gradient(800px 420px at var(--spot-x) var(--spot-y), rgba(59,130,246,.18), transparent 65%);
+          mask: radial-gradient(60% 35% at 50% 50%, #000 50%, transparent 70%);
+          transform: rotate(-8deg) translateZ(0);
+          opacity:.9;
+        }
+        .aurora::after{
+          transform: rotate(9deg) scale(1.05);
+          opacity:.7;
+          mix-blend-mode: screen;
+        }
+        @keyframes hue { 0%{ filter:hue-rotate(0deg) } 100%{ filter:hue-rotate(360deg) } }
+
+        /* Parallax glow blobs (depth) */
+        .blobs{ position:absolute; inset:0; z-index:0; pointer-events:none; }
+        .blob{
+          position:absolute; width:40vmax; height:40vmax; border-radius:50%;
+          background: radial-gradient(circle at 35% 35%, rgba(34,211,238,.35), transparent 60%);
+          filter: blur(60px); opacity:.7; transform: translateZ(0);
+          animation: drift 28s ease-in-out infinite;
+        }
+        .blob.b2{ left:auto; right:-10vmax; top:20vh; background: radial-gradient(circle at 60% 40%, rgba(124,58,237,.35), transparent 60%); animation-duration: 34s; }
+        .blob.b3{ left:10vmax; bottom:-12vmax; background: radial-gradient(circle at 40% 60%, rgba(59,130,246,.28), transparent 60%); animation-duration: 40s; }
+        @keyframes drift{
+          0%,100%{ transform: translate3d(0,0,0) scale(1) }
+          50%{ transform: translate3d(-4vmax, 2vmax, 0) scale(1.05) }
+        }
+
+        /* Micro-grid for texture (very subtle) */
+        .grid{
+          position:absolute; inset:-1px; z-index:0; opacity:.08; pointer-events:none;
+          background:
+            repeating-linear-gradient(90deg, rgba(255,255,255,.4) 0 1px, transparent 1px 24px),
+            repeating-linear-gradient(0deg,  rgba(255,255,255,.4) 0 1px, transparent 1px 24px);
+          mix-blend-mode: overlay;
+          mask: radial-gradient(1200px 700px at 50% 40%, #000 65%, transparent 100%);
+        }
+
+        /* Animated film grain (SVG filter) */
+        .noise{ position:absolute; inset:0; z-index:0; pointer-events:none; opacity:.06; mix-blend-mode: overlay; }
+        .noise svg{ width:100%; height:100%; display:block; }
+
+        /* -------------- Card -------------- */
+        .authx-card{
+          position:relative; z-index:2;
+          background: rgba(255,255,255,.06);
+          border:1px solid rgba(255,255,255,.16);
+          border-radius:20px;
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          box-shadow: 0 20px 60px rgba(0,0,0,.55), 0 6px 18px rgba(0,0,0,.35);
+          transition: transform .15s ease, box-shadow .2s ease;
+        }
+        .authx-card::before{
+          content:""; position:absolute; inset:-1px; border-radius:inherit;
+          background: conic-gradient(from 210deg, transparent 0 60%, rgba(124,58,237,.55) 70%, transparent 80%);
+          filter: blur(16px); opacity:.9; z-index:-1;
+          mask: linear-gradient(#000, #000) content-box, linear-gradient(#000, #000);
+          -webkit-mask-composite: xor; mask-composite: exclude; padding:1px;
+        }
+        .authx-card:hover{ box-shadow: 0 28px 82px rgba(124,58,237,.28), 0 12px 46px rgba(0,0,0,.6); }
+
+        .brand{ display:flex; align-items:center; justify-content:center; gap:.7rem; color:#e7ebff; }
+        .logo{
+          width:46px; height:46px; border-radius:14px; font-weight:800; display:grid; place-items:center;
+          background: conic-gradient(from 140deg, var(--violet), var(--cyan), var(--violet));
+          box-shadow: 0 12px 28px rgba(34,211,238,.28);
+        }
+        .muted{ color:var(--muted); }
+
+        /* Inputs + button */
+        .authx .form-control{
+          background: rgba(255,255,255,.07);
+          border:1px solid rgba(255,255,255,.22);
+          color:#f1f5ff;
+        }
+        .authx .form-control:focus{
+          background: rgba(255,255,255,.1);
+          border-color: rgba(34,211,238,.85);
+          box-shadow: 0 0 0 .25rem rgba(34,211,238,.25);
+          color:#fff;
+        }
+        .ico{ position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#9cb0d0; }
+        .ps-44{ padding-left:44px !important; }
+
+        .btn-glow{
+          background: linear-gradient(135deg, var(--violet), var(--blue));
+          border:none; color:white;
+          box-shadow: 0 14px 30px rgba(124,58,237,.35), inset 0 1px 0 rgba(255,255,255,.08);
+        }
+        .btn-glow:hover{ filter:brightness(1.08); }
+
+        .authx a{ color:#cfe3ff; text-decoration:none; }
+        .authx a:hover{ color:#fff; text-decoration:underline; }
+
+        /* Card tilt */
+        #cardTilt{ transform-style: preserve-3d; }
+    </style>
+
+    <!-- Mesh-aurora + parallax blobs -->
+    <div class="aurora"></div>
+    <div class="blobs">
+        <div class="blob b1" style="left:-12vmax; top:-8vmax;"></div>
+        <div class="blob b2"></div>
+        <div class="blob b3"></div>
+    </div>
+    <div class="grid"></div>
+
+    <!-- SVG animated noise -->
+    <div class="noise" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg">
+            <filter id="grain">
+                <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="2" seed="3">
+                    <animate attributeName="baseFrequency" values="0.72;0.8;0.72" dur="8s" repeatCount="indefinite"/>
+                </feTurbulence>
+                <feColorMatrix type="saturate" values="0"/>
+            </filter>
+            <rect width="100%" height="100%" filter="url(#grain)"></rect>
+        </svg>
+    </div>
+
+    <!-- ================================ Card ================================ -->
+    <div class="container position-relative" style="z-index:2">
+        <div class="row justify-content-center">
+            <div class="col-sm-10 col-md-7 col-lg-5 col-xl-4">
+                <div class="authx-card p-4 p-md-5" id="cardTilt" aria-live="polite">
+                    <div class="brand mb-3">
+                        <span class="logo">P</span>
+                        <div class="fw-semibold">Parking&nbsp;Management</div>
+                    </div>
+
+                    <h1 class="h4 text-center mb-1" style="color:#f6f9ff;">Welcome back</h1>
+                    <p class="text-center muted mb-4">Secure sign-in to continue</p>
+
+                    <!-- Alerts via query params (unchanged behavior) -->
+                    <div th:if="${param.error}" class="alert alert-danger py-2 mb-3" role="alert">
+                        Invalid email or password.
+                    </div>
+                    <div th:if="${param.registered}" class="alert alert-success py-2 mb-3" role="alert">
+                        Registration successful. Please sign in.
+                    </div>
+                    <div th:if="${param.logout}" class="alert alert-info py-2 mb-3" role="alert">
+                        You have been signed out.
+                    </div>
+
+                    <!-- ======== FORM (unchanged contract) ======== -->
+                    <form method="post" th:action="@{/login}" class="needs-validation" novalidate id="loginForm">
+                        <!-- CSRF -->
+                        <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+                        <!-- Email -->
+                        <div class="mb-3 position-relative">
+                            <i class="bi bi-envelope ico"></i>
+                            <label for="email" class="form-label text-white-50">Email</label>
+                            <input id="email" class="form-control ps-44"
+                                   type="email" name="email" placeholder="you@email.com"
+                                   autocomplete="username" required>
+                            <div class="invalid-feedback">Please enter a valid email.</div>
+                        </div>
+
+                        <!-- Password + show/hide -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label for="password" class="form-label text-white-50 mb-1">Password</label>
+                                <button type="button" class="btn btn-link btn-sm p-0" id="togglePwd">
+                                    <i class="bi bi-eye"></i> Show
+                                </button>
+                            </div>
+                            <div class="position-relative">
+                                <i class="bi bi-shield-lock ico"></i>
+                                <input id="password" class="form-control ps-44"
+                                       type="password" name="password"
+                                       autocomplete="current-password" required>
+                                <div class="invalid-feedback">Password is required.</div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-glow w-100" type="submit" id="submitBtn">
+                            <i class="bi bi-box-arrow-in-right me-1"></i> Sign in
+                        </button>
+                    </form>
+
+                    <div class="text-center mt-3">
+                        <a th:href="@{/register}">Create an account</a>
+                        <span class="mx-2 muted">•</span>
+                        <a href="#" aria-disabled="true">Forgot password?</a>
+                    </div>
+                </div>
+
+                <p class="text-center muted small mt-3 mb-0">Protected area • Authorized users only</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================= Scoped JS (no backend changes) ======================= -->
+    <script>
+        (function(){
+          const root = document.querySelector('.authx');
+          // Spotlight moves with cursor for depth
+          document.addEventListener('mousemove', (e)=>{
+            const r = root.getBoundingClientRect();
+            root.style.setProperty('--spot-x', ((e.clientX - r.left)/r.width*100)+'%');
+            root.style.setProperty('--spot-y', ((e.clientY - r.top)/r.height*100)+'%');
+          });
+
+          // Card tilt (subtle)
+          const card = document.getElementById('cardTilt');
+          card.addEventListener('pointermove', (e)=>{
+            const b = card.getBoundingClientRect();
+            const cx = (e.clientX - b.left)/b.width - .5;
+            const cy = (e.clientY - b.top)/b.height - .5;
+            card.style.transform = `perspective(900px) rotateX(${(-cy*5).toFixed(2)}deg) rotateY(${(cx*6).toFixed(2)}deg)`;
+          });
+          card.addEventListener('pointerleave', ()=> card.style.transform = 'perspective(900px)');
+
+          // Form validation + submit guard
+          const form = document.getElementById('loginForm');
+          const btn  = document.getElementById('submitBtn');
+          const pwd  = document.getElementById('password');
+          const toggle = document.getElementById('togglePwd');
+
+          form.addEventListener('submit', function (e) {
+            if (!form.checkValidity()) {
+              e.preventDefault(); e.stopPropagation();
+            } else {
+              btn.disabled = true;
+              btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Signing in…';
+            }
+            form.classList.add('was-validated');
+          });
+
+          toggle.addEventListener('click', function () {
+            const showing = pwd.type === 'text';
+            pwd.type = showing ? 'password' : 'text';
+            toggle.innerHTML = showing ? '<i class="bi bi-eye"></i> Show' : '<i class="bi bi-eye-slash"></i> Hide';
+          });
+        })();
+    </script>
+</section>
+</body>
+</html>

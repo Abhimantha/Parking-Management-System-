@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head th:replace="~{fragments/layout :: head('Checkout')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'payments')}">
+<section>
+    <div class="row justify-content-center py-3">
+        <div class="col-md-7 col-lg-6">
+            <div class="card shadow border-0 card-lift">
+                <div class="card-body p-4">
+                    <h4 class="mb-2"><i class="bi bi-lock-fill me-2"></i>Checkout</h4>
+                    <div class="text-muted mb-3">Reservation <strong th:text="${payment.reservation.id}">#</strong></div>
+
+                    <!-- Promo entry (no hard dependency on Reservation.promoCode) -->
+                    <div class="mb-3">
+                        <label class="form-label">Promo code (optional)</label>
+                        <div class="input-group">
+                            <!-- Use request param if present; otherwise blank. No reference to a missing field -->
+                            <input id="chkPromo" class="form-control" th:value="${promo} ?: (${param.promo} ?: '')" placeholder="e.g. WEEKEND10">
+                            <button class="btn btn-outline-primary" type="button" onclick="applyCheckoutPromo()">
+                                Apply
+                            </button>
+                        </div>
+                        <div id="chkPromoMsg" class="small mt-1 text-muted"></div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="fs-6 text-muted">Amount due</div>
+                        <div id="chkTotal" class="fs-3 fw-bold" th:text="${#numbers.formatDecimal(amount,1,'COMMA',2,'POINT')}">0.00</div>
+                    </div>
+
+                    <form id="payForm" th:action="@{|/payments/${payment.id}/pay|}" method="post" class="vstack gap-3">
+                        <div>
+                            <label class="form-label">Payment method</label>
+                            <select name="method" class="form-select" required>
+                                <option value="CARD">Card</option>
+                                <option value="UPI">UPI</option>
+                                <option value="CASH">Cash</option>
+                            </select>
+                        </div>
+
+                        <!-- CSRF & context -->
+                        <input type="hidden" id="csrfName" th:value="${_csrf?.parameterName} ?: '_csrf'">
+                        <input type="hidden" id="csrfToken" th:value="${_csrf?.token} ?: ''">
+
+                        <div id="chkCtx"
+                             th:data-phase="${phase}"
+                             th:data-res-id="${payment.reservation.id}"
+                             th:data-slot-id="${payment.reservation.slot?.id}"
+                             th:data-start="${#temporals.format(payment.reservation.startTime, 'yyyy-MM-dd''T''HH:mm:ss')}"
+                             th:data-end="${#temporals.format(payment.reservation.endTime,   'yyyy-MM-dd''T''HH:mm:ss')}"></div>
+
+
+                        <button class="btn btn-primary btn-lg w-100" type="submit">
+                            <i class="bi bi-credit-card-2-back me-1"></i> Pay now
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function stripZone(s){
+          if(!s) return s;
+          return s.replace(/Z$/,'').replace(/[+-]\d\d:?\d\d$/,'');
+        }
+
+        function getPhaseFactor(){
+          const phase = (new URLSearchParams(location.search).get('phase') || document.getElementById('chkCtx')?.dataset?.phase || 'ADVANCE').toUpperCase();
+          return phase === 'ADVANCE' ? 0.30 : 1.00;
+        }
+
+        async function applyCheckoutPromo(){
+          const ctx  = document.getElementById('chkCtx');
+          const promo= document.getElementById('chkPromo').value.trim();
+          const msg  = document.getElementById('chkPromoMsg');
+          const out  = document.getElementById('chkTotal');
+
+          const slotId = ctx?.dataset?.slotId;
+          const start  = stripZone(ctx?.dataset?.start);
+          const end    = stripZone(ctx?.dataset?.end);
+
+          msg.textContent = '';
+          msg.classList.remove('text-danger');
+
+          try {
+            if (slotId && start && end) {
+              const qs = new URLSearchParams({ slotId, start, end });
+              if (promo) qs.set('promo', promo);
+              const res = await fetch('/api/pricing/quote?' + qs.toString(), { headers: { 'Accept':'application/json' }});
+              if (res.ok) {
+                const q = await res.json();
+                const factor = getPhaseFactor();
+                out.textContent = (Number(q.total) * factor).toFixed(2);
+
+                const anyPromo = (q.adjustments||[]).some(a => a.kind === 'PROMO');
+                msg.textContent = promo ? (anyPromo ? 'Promo applied.' : 'Code not applicable for this reservation.') : '';
+                msg.classList.toggle('text-danger', promo && !anyPromo);
+                msg.classList.toggle('text-muted',  !promo || anyPromo);
+
+                // IMPORTANT: reload page with ?promo=... so server recomputes and stores the amount
+                const u = new URL(location.href);
+                if (promo) u.searchParams.set('promo', promo); else u.searchParams.delete('promo');
+                location.href = u.toString();
+              }
+            }
+          } catch (e) {
+            msg.textContent = 'Could not apply promo.';
+            msg.classList.add('text-danger');
+          }
+        }
+
+        document.getElementById('payForm')?.addEventListener('submit', async ()=>{
+          try { await applyCheckoutPromo(); } catch(e) {}
+        });
+    </script>
+
+
+</section>
+</body>
+</html>

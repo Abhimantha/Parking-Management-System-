@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Payments')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'payments')}">
+<section>
+    <h1 class="h3 mb-3"><i class="bi bi-credit-card-2-front me-2"></i>Payments</h1>
+
+    <!-- flash -->
+    <div th:if="${msg}" class="alert alert-success" th:text="${msg}">Done</div>
+    <div th:if="${err}" class="alert alert-danger" th:text="${err}">Error</div>
+
+    <!-- GROUPED VIEW -->
+    <div th:if="${groupedPayments != null and !#maps.isEmpty(groupedPayments)}" class="vstack gap-3">
+
+        <div class="card shadow-sm border-0" th:each="entry : ${groupedPayments.entrySet()}"
+             th:with="resId=${entry.key}, items=${entry.value}, paid=${paidTotals[resId]}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>Reservation #<span th:text="${resId}">0</span></strong>
+                </div>
+
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Payment ID</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="p : ${items}">
+                            <td th:text="${p.id}">1</td>
+                            <td th:text="${#numbers.formatDecimal(p.amount,1,'COMMA',2,'POINT')}">100.00</td>
+                            <td th:text="${p.method}">CASH</td>
+                            <td>
+                                <span class="badge text-bg-success"    th:if="${#strings.equalsIgnoreCase(p.status,'PAID')}">PAID</span>
+                                <span class="badge text-bg-warning text-dark" th:if="${#strings.equalsIgnoreCase(p.status,'PENDING')}">PENDING</span>
+                                <span class="badge text-bg-danger"     th:if="${#strings.equalsIgnoreCase(p.status,'FAILED')}">FAILED</span>
+                                <span class="badge text-bg-info text-dark" th:if="${#strings.equalsIgnoreCase(p.status,'REFUNDED')}">REFUNDED</span>
+                                <span class="badge text-bg-secondary"  th:if="${#strings.equalsIgnoreCase(p.status,'CANCELLED')}">CANCELLED</span>
+                            </td>
+                            <td th:text="${p.createdAt}">2025-01-01T10:00</td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(items)}">
+                            <td colspan="5" class="text-center text-muted py-4">No payments for this reservation.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- FALLBACK: flat list (if no grouped data available) -->
+    <div th:if="${groupedPayments == null or #maps.isEmpty(groupedPayments)}" class="card shadow-sm border-0 card-lift">
+        <div class="table-responsive">
+            <table class="table table-striped align-middle mb-0">
+                <thead class="table-light">
+                <tr>
+                    <th>ID</th><th>Reservation</th><th>Amount</th><th>Status</th><th>Created</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="p : ${payments}">
+                    <td th:text="${p.id}">1</td>
+                    <td th:text="${p.reservation != null ? p.reservation.id : '—'}">5</td>
+                    <td th:text="${#numbers.formatDecimal(p.amount,1,'COMMA',2,'POINT')}">100.00</td>
+                    <td>
+                        <span class="badge text-bg-success" th:if="${#strings.equalsIgnoreCase(p.status,'PAID')}">PAID</span>
+                        <span class="badge text-bg-warning text-dark" th:if="${#strings.equalsIgnoreCase(p.status,'PENDING')}">PENDING</span>
+                        <span class="badge text-bg-danger" th:if="${#strings.equalsIgnoreCase(p.status,'FAILED')}">FAILED</span>
+                        <span class="badge text-bg-info text-dark" th:if="${#strings.equalsIgnoreCase(p.status,'REFUNDED')}">REFUNDED</span>
+                        <span class="badge text-bg-secondary" th:if="${#strings.equalsIgnoreCase(p.status,'CANCELLED')}">CANCELLED</span>
+                    </td>
+                    <td th:text="${p.createdAt}">2025-01-01T10:00</td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(payments)}">
+                    <td colspan="5" class="text-center text-muted py-4">No payments yet.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</section>
+</body>
+</html>

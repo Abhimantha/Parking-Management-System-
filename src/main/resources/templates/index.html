@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Smart Parking & Reservations')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'home')}">
+<section>
+
+    <!-- page-scoped styles — only affect this page -->
+    <style>
+        :root{
+          /* pull from bootstrap theme; provide graceful fallbacks */
+          --lp-primary: var(--bs-primary, #4f46e5);
+          --lp-info: var(--bs-info, #22d3ee);
+          --lp-surface: rgba(255,255,255,.06);     /* glass fill */
+          --lp-border: rgba(255,255,255,.18);      /* glass border */
+          --lp-shadow: 0 12px 40px rgba(3,7,18,.28);
+          --lp-muted: rgba(255,255,255,.75);
+        }
+
+        /* fully translucent hero that lets the global background show through */
+        .lp-hero{
+          position: relative;
+          border-radius: 1rem;
+          background:
+            radial-gradient(800px 400px at 15% -10%, color-mix(in srgb, var(--lp-info) 22%, transparent) 0%, transparent 60%),
+            radial-gradient(900px 520px at 85% -10%, color-mix(in srgb, var(--lp-primary) 20%, transparent) 0%, transparent 65%),
+            linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.02));
+          border: 1px solid var(--lp-border);
+          box-shadow: var(--lp-shadow);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          overflow: hidden;
+          color: #fff;
+        }
+
+        /* super-soft animated glow, very low alpha so it never fights the shell */
+        .lp-hero::after{
+          content:""; position:absolute; inset:-25%;
+          background: radial-gradient(closest-side, rgba(255,255,255,.06), transparent 60%);
+          filter: blur(36px);
+          animation: lp-float 14s ease-in-out infinite alternate;
+          pointer-events:none;
+        }
+        @keyframes lp-float{ from{ transform:translate3d(-2%,-1%,0) rotate(0deg) }
+                             to{   transform:translate3d( 2%, 1%,0) rotate(3deg) } }
+
+        /* keep foreground above effects */
+        .lp-hero .row, .lp-hero .btn{ position: relative; z-index: 1; }
+
+        .lp-badge{
+          letter-spacing:.12em; font-weight:600;
+          background: rgba(255,255,255,.92)!important; color:#111!important;
+          border: 1px solid rgba(0,0,0,.06);
+        }
+        .lp-badge i{ color: var(--lp-primary); }
+
+        /* glass cards that match the hero treatment */
+        .lp-card{
+          border:1px solid var(--lp-border);
+          border-radius:1rem;
+          background: var(--lp-surface);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          box-shadow: 0 8px 28px rgba(2,6,23,.22);
+          transition: transform .22s ease, box-shadow .22s ease;
+        }
+        .lp-card:hover{ transform: translateY(-3px); box-shadow: 0 14px 46px rgba(2,6,23,.30); }
+
+        .lp-icon{
+          width:44px;height:44px;display:grid;place-items:center;border-radius:12px;font-size:1.1rem;
+          background: color-mix(in srgb, var(--lp-primary) 18%, transparent);
+          color: var(--lp-primary);
+        }
+        .lp-icon.green{
+          background: color-mix(in srgb, var(--lp-info) 18%, transparent);
+          color: var(--lp-info);
+        }
+        .lp-icon.amber{
+          background: rgba(245,158,11,.16); color:#f59e0b;
+        }
+
+        .lp-steps .num{
+          width:36px;height:36px;border-radius:50%;
+          background: rgba(17,24,39,.9); color:#fff; display:inline-flex; align-items:center; justify-content:center;
+          font-weight:700; margin-right:.6rem; box-shadow: 0 6px 18px rgba(0,0,0,.25);
+        }
+
+        .lp-divider{ height:1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.16), transparent); }
+
+        /* progress bar that uses theme colors so it always matches navbar */
+        .lp-progress .progress-bar{
+          background: linear-gradient(90deg, var(--lp-info), var(--lp-primary));
+        }
+
+        /* buttons aligned to theme */
+        .btn-primary{
+          background: linear-gradient(135deg, var(--lp-info), var(--lp-primary));
+          border: none;
+          box-shadow: 0 8px 24px color-mix(in srgb, var(--lp-primary) 35%, transparent);
+        }
+        .btn-primary:hover{ filter: brightness(1.05); transform: translateY(-1px); }
+        .btn-outline-light{ border-color: rgba(255,255,255,.72); color:#fff; }
+        .btn-outline-light:hover{ background: rgba(255,255,255,.08); }
+
+        .lp-cta{
+          border-radius:1rem;
+          border:1px solid var(--lp-border);
+          background: linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(6px);
+        }
+
+        /* tone down secondary text on dark glass */
+        .text-white-50{ color: var(--lp-muted)!important; }
+
+        /* reduce motion accessibility */
+        @media (prefers-reduced-motion: reduce){
+          .lp-hero::after, .lp-card, .btn-primary{ animation:none; transition:none; }
+        }
+    </style>
+
+    <!-- HERO -->
+    <div class="lp-hero p-4 p-md-5 mb-4">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-7">
+        <span class="badge lp-badge mb-3">
+          <i class="bi bi-lightning-charge me-1"></i> Next-gen Parking Platform
+        </span>
+                <h1 class="display-5 fw-bold mb-3 text-white">Park smarter. Reserve faster. Manage effortlessly.</h1>
+                <p class="lead text-white-50 mb-4">
+                    Real-time availability, seamless reservations, secure payments, and powerful admin tools —
+                    all in one sleek system built for modern parking lots.
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary btn-lg" th:href="@{/login}">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Log in
+                    </a>
+                    <a class="btn btn-outline-light btn-lg" th:href="@{/register}">
+                        <i class="bi bi-person-plus me-1"></i> Create account
+                    </a>
+                </div>
+                <div class="text-white-50 small mt-3">
+                    No credit card required · Cancel anytime
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="lp-card p-3">
+                    <!-- mock dashboard preview -->
+                    <div class="p-3 rounded-3" style="background: rgba(12,19,36,.55); border:1px solid rgba(255,255,255,.12)">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="text-white-50 small">Live occupancy</div>
+                            <span class="badge text-bg-success">Online</span>
+                        </div>
+                        <div class="progress mb-2 lp-progress" role="progressbar" aria-label="occupancy">
+                            <div class="progress-bar" style="width: 62%"></div>
+                        </div>
+                        <div class="d-flex justify-content-between text-white-50 small mb-3">
+                            <span>Occupied</span><span>62%</span>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="p-3 rounded-3" style="background: rgba(15,23,42,.6); border:1px solid rgba(255,255,255,.10)">
+                                    <div class="text-white-50 small">Available Slots</div>
+                                    <div class="h4 m-0 text-white">138</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 rounded-3" style="background: rgba(15,23,42,.6); border:1px solid rgba(255,255,255,.10)">
+                                    <div class="text-white-50 small">Active Reservations</div>
+                                    <div class="h4 m-0 text-white">57</div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="p-3 rounded-3" style="background: rgba(15,23,42,.6); border:1px solid rgba(255,255,255,.10)">
+                                    <div class="text-white-50 small mb-1">Revenue (today)</div>
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-graph-up-arrow me-2 text-success"></i>
+                                        <div class="h5 m-0 text-white">₹ 12,450</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div><!-- /mock -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TRUST / METRICS -->
+    <div class="row g-3 text-center mb-4">
+        <div class="col-6 col-md-3">
+            <div class="lp-card p-3">
+                <div class="text-white-50 small">Avg. search to reserve</div>
+                <div class="h4 m-0 text-white">12s</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="lp-card p-3">
+                <div class="text-white-50 small">Uptime</div>
+                <div class="h4 m-0 text-white">99.9%</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="lp-card p-3">
+                <div class="text-white-50 small">Cities</div>
+                <div class="h4 m-0 text-white">25+</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="lp-card p-3">
+                <div class="text-white-50 small">Slots managed</div>
+                <div class="h4 m-0 text-white">10k+</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FEATURES -->
+    <div class="mb-4">
+        <h2 class="h4 fw-bold mb-3 text-white">Why drivers & operators love it</h2>
+        <div class="row g-3">
+            <div class="col-md-6 col-lg-4">
+                <div class="lp-card p-4 h-100">
+                    <div class="lp-icon mb-3"><i class="bi bi-geo-alt"></i></div>
+                    <h5 class="mb-1 text-white">Real-time availability</h5>
+                    <div class="text-white-50">Spot open slots instantly, filter by lot/level, and reserve in seconds.</div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="lp-card p-4 h-100">
+                    <div class="lp-icon green mb-3"><i class="bi bi-calendar-check"></i></div>
+                    <h5 class="mb-1 text-white">Seamless reservations</h5>
+                    <div class="text-white-50">Smart conflict checks and clean workflows keep things effortless.</div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="lp-card p-4 h-100">
+                    <div class="lp-icon amber mb-3"><i class="bi bi-shield-lock"></i></div>
+                    <h5 class="mb-1 text-white">Secure payments</h5>
+                    <div class="text-white-50">Advance deposits, balance on completion, and fast refunds on cancel.</div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="lp-card p-4 h-100">
+                    <div class="lp-icon mb-3"><i class="bi bi-people"></i></div>
+                    <h5 class="mb-1 text-white">Role-based access</h5>
+                    <div class="text-white-50">Drivers, Managers, Admins — everyone gets the right tools & views.</div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="lp-card p-4 h-100">
+                    <div class="lp-icon green mb-3"><i class="bi bi-bar-chart"></i></div>
+                    <h5 class="mb-1 text-white">Reports & insights</h5>
+                    <div class="text-white-50">Occupancy, revenue, trends — make decisions with confidence.</div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="lp-card p-4 h-100">
+                    <div class="lp-icon amber mb-3"><i class="bi bi-building"></i></div>
+                    <h5 class="mb-1 text-white">Multi-lot & multi-level</h5>
+                    <div class="text-white-50">Scale across locations with consistent policies and visibility.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="lp-divider my-4"></div>
+
+    <!-- HOW IT WORKS -->
+    <div class="row g-4 align-items-center mb-4 lp-steps">
+        <div class="col-lg-6">
+            <h2 class="h4 fw-bold mb-3 text-white">From search to parked — in four quick steps</h2>
+            <div class="d-flex mb-3">
+                <div class="num me-2">1</div>
+                <div>
+                    <div class="fw-semibold text-white">Browse live availability</div>
+                    <div class="text-white-50">Filter by lot, level, slot type — see what’s open right now.</div>
+                </div>
+            </div>
+            <div class="d-flex mb-3">
+                <div class="num me-2">2</div>
+                <div>
+                    <div class="fw-semibold text-white">Reserve & pay advance</div>
+                    <div class="text-white-50">Lock your spot with a quick deposit — we’ll hold it for you.</div>
+                </div>
+            </div>
+            <div class="d-flex mb-3">
+                <div class="num me-2">3</div>
+                <div>
+                    <div class="fw-semibold text-white">Park with confidence</div>
+                    <div class="text-white-50">Instructions and slot details on your reservation screen.</div>
+                </div>
+            </div>
+            <div class="d-flex">
+                <div class="num me-2">4</div>
+                <div>
+                    <div class="fw-semibold text-white">Pay balance on completion</div>
+                    <div class="text-white-50">Finish the trip, settle the final amount — refunds on cancel.</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="lp-card p-4">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-check2-circle text-success me-2"></i>
+                    <strong class="text-white">Fast track:</strong>&nbsp;<span class="text-white-50">Create your free account</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <a class="btn btn-primary" th:href="@{/register}"><i class="bi bi-person-plus me-1"></i> Sign up</a>
+                    <a class="btn btn-outline-light" th:href="@{/login}"><i class="bi bi-box-arrow-in-right me-1"></i> Log in</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="lp-divider my-4"></div>
+
+    <!-- TESTIMONIALS -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-4">
+            <div class="lp-card p-4 h-100">
+                <div class="mb-2"><i class="bi bi-quote fs-3 text-white-50"></i></div>
+                <div class="fst-italic text-white">“The easiest way to reserve a slot downtown. No circling, no stress.”</div>
+                <div class="mt-2 text-white-50 small">— A. Perera, Driver</div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="lp-card p-4 h-100">
+                <div class="mb-2"><i class="bi bi-quote fs-3 text-white-50"></i></div>
+                <div class="fst-italic text-white">“Managers finally have live occupancy and clean reporting. Game-changer.”</div>
+                <div class="mt-2 text-white-50 small">— K. Silva, Lot Manager</div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="lp-card p-4 h-100">
+                <div class="mb-2"><i class="bi bi-quote fs-3 text-white-50"></i></div>
+                <div class="fst-italic text-white">“Advance + balance flow is perfect for our business model.”</div>
+                <div class="mt-2 text-white-50 small">— R. Fernando, Operator</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FINAL CTA -->
+    <div class="lp-cta p-4 p-md-5 text-center mb-2">
+        <h3 class="fw-bold mb-2 text-white">Ready to experience effortless parking?</h3>
+        <p class="text-white-50 mb-3">Join drivers and operators who’ve already streamlined their day.</p>
+        <div class="d-flex justify-content-center gap-2">
+            <a class="btn btn-primary btn-lg" th:href="@{/register}">Get started</a>
+            <a class="btn btn-outline-light btn-lg" th:href="@{/login}">I already have an account</a>
+        </div>
+    </div>
+
+</section>
+</body>
+</html>

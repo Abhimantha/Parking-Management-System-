@@ -1,0 +1,241 @@
+/* ==========================================================================
+   LankaPark UI — cohesive theme layer for all pages
+   Works with Bootstrap 5.3+ and your existing markup/IDs.
+   Drop-in: no HTML changes required.
+   ========================================================================== */
+
+:root{
+  /* brand */
+  --lp-primary: #e546e2;           /* indigo-600 */
+  --lp-primary-rgb: 79,70,229;
+  --lp-success-rgb: 16,185,129;
+  --lp-amber-rgb: 245,158,11;
+  --lp-ink: #0f192a;               /* slate-900 */
+  --lp-ink-2: #111827;             /* gray-900 */
+  --lp-muted: #6b7280;             /* gray-500 */
+  --lp-border: 2,6,23;             /* slate-950 (rgb for rgba) */
+
+  /* surfaces */
+  --lp-surface: #ffffff;
+  --lp-soft-shadow: 0 10px 28px rgba(2,6,23,.06);
+  --lp-soft-shadow-lg: 0 14px 40px rgba(2,6,23,.10);
+
+  /* radii */
+  --lp-radius: 1rem;
+  --lp-radius-sm: .75rem;
+
+  /* glows */
+  --lp-focus: 0 0 0 .25rem rgba(var(--lp-primary-rgb), .25);
+}
+
+/* Dark mode overrides (use Bootstrap data attribute) */
+[data-bs-theme='dark'] :root{ /* no-op: variables kept same for consistency */ }
+[data-bs-theme='dark'] body{
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(var(--lp-primary-rgb), .08), transparent 60%),
+    radial-gradient(900px 540px  at 6% 0%, rgba(var(--lp-success-rgb), .08), transparent 55%),
+    linear-gradient(180deg, #0b1220 0%, #0a1020 100%);
+  color: #e6edf7;
+}
+[data-bs-theme='dark'] .card,
+[data-bs-theme='dark'] .tile{
+  background: #0f172a;
+  border-color: rgba(148,163,184,.18) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+}
+[data-bs-theme='dark'] .table-responsive thead th{ background:#0f172a; }
+[data-bs-theme='dark'] .input-group-text{ background:#0b1220; color:#dbe6ff; }
+[data-bs-theme='dark'] .table.table-striped>tbody>tr:nth-of-type(odd)>*{ background: rgba(255,255,255,.02); }
+[data-bs-theme='dark'] .tile .t-l{ color:#a8b3c7; }
+[data-bs-theme='dark'] .badge.text-bg-secondary{ background: rgba(148,163,184,.18) !important; color:#e6edf7 !important; }
+
+/* ---------- Global background that subtly matches the hero ---------- */
+body{
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(var(--lp-primary-rgb), .06), transparent 60%),
+    radial-gradient(900px 540px  at 6% 0%, rgba(var(--lp-success-rgb), .06), transparent 55%),
+    linear-gradient(180deg, #f8fafc 0%, #f9fafb 100%);
+}
+
+/* light grain for depth without banding */
+body::before{
+  content:""; position: fixed; inset:0; pointer-events:none;
+  background: repeating-linear-gradient(90deg, rgba(0,0,0,.008), rgba(0,0,0,.008) 1px, transparent 1px, transparent 9px),
+              repeating-linear-gradient(0deg,  rgba(0,0,0,.008), rgba(0,0,0,.008) 1px, transparent 1px, transparent 9px);
+  opacity:.4;
+}
+
+/* ---------- Navbar: gradient brand bar ---------- */
+.navbar.bg-gradient-primary{
+  background:
+    linear-gradient(135deg,
+      rgba(var(--lp-primary-rgb), .98) 0%,
+      rgba(55,48,163, .98) 48%,
+      rgba(var(--lp-success-rgb), .92) 120%) !important;
+  box-shadow: 0 6px 16px rgba(2,6,23,.18);
+}
+.navbar .nav-link{ opacity:.92; }
+.navbar .nav-link.active,
+.navbar .nav-link:hover{ opacity:1; text-shadow: 0 0 1px rgba(255,255,255,.25); }
+
+/* ---------- Cards, tiles, tables ---------- */
+.card{
+  border: 1px solid rgba(var(--lp-border), .06) !important;
+  border-radius: var(--lp-radius);
+  box-shadow: var(--lp-soft-shadow);
+  background: var(--lp-surface);
+}
+.card:hover.card-lift{ transform: translateY(-2px); box-shadow: var(--lp-soft-shadow-lg); }
+.card-lift{ transition: transform .2s ease, box-shadow .2s ease; }
+
+.tile{
+  background: var(--lp-surface);
+  border: 1px dashed rgba(var(--lp-border), .12);
+  border-radius: var(--lp-radius-sm);
+  padding: .9rem 1rem;
+  box-shadow: 0 4px 14px rgba(2,6,23,.05);
+}
+.tile .t-l{ color: var(--lp-muted); font-size:.85rem; letter-spacing:.02em; }
+.tile .t-k{ font-weight:700; font-size:1.25rem; }
+
+/* Tables */
+.table thead th{
+  border-bottom: 1px solid rgba(var(--lp-border), .12);
+  white-space: nowrap;
+  color: #0b0f18; /* strong contrast in light mode */
+}
+[data-bs-theme='light'] .table thead.table-light,
+[data-bs-theme='light'] .table thead.table-light th,
+[data-bs-theme='light'] .table thead.table-light td{
+  color: #0b0f18 !important;
+}
+[data-bs-theme='dark'] .table thead th{ color: #e6edf7; }
+
+/* Ensure header row inside card tables has solid black text in light theme */
+[data-bs-theme='light'] .card .table thead th,
+[data-bs-theme='light'] .table thead tr th{
+  color:#000 !important;
+}
+.table tbody tr:hover{ background: rgba(var(--lp-primary-rgb), .035); }
+.table.table-striped>tbody>tr:nth-of-type(odd)>*{
+  background: rgba(2,6,23,.02);
+}
+
+/* Sticky header tables inside responsive wrappers */
+.table-responsive thead th{
+  position: sticky; top:0; z-index: 2; background: #fff;
+}
+
+/* ----------------- UI style variants ----------------- */
+/* Neo (default): glassy, shadows */
+body[data-ui='neo'] .card{ backdrop-filter: saturate(120%) blur(2px); }
+body[data-ui='neo'] .card-ghost{ background: rgba(255,255,255,.55); }
+
+/* Minimal: flat, crisp borders, no shadows */
+body[data-ui='minimal'] .card,
+body[data-ui='minimal'] .tile{
+  box-shadow: none !important;
+  border: 1px solid rgba(var(--lp-border), .14) !important;
+}
+body[data-ui='minimal'] .btn-primary{ box-shadow: none; }
+body[data-ui='minimal'] .navbar.bg-gradient-primary{ box-shadow: none; }
+body[data-ui='minimal'] .chip, body[data-ui='minimal'] .fp-chip.btn{ border-style: solid; }
+
+/* ---------- Forms ---------- */
+.form-control, .form-select{
+  border-radius: .7rem;
+  border: 1px solid rgba(var(--lp-border), .12);
+  background-clip: padding-box;
+}
+.form-control:focus, .form-select:focus{
+  border-color: rgba(var(--lp-primary-rgb), .45);
+  box-shadow: var(--lp-focus);
+}
+.input-group-text{
+  border-radius: .7rem 0 0 .7rem;
+  border: 1px solid rgba(var(--lp-border), .12);
+  background: #f8fafc;
+}
+
+/* ---------- Buttons ---------- */
+.btn{
+  border-radius: .7rem;
+  transition: transform .08s ease, box-shadow .2s ease, opacity .12s ease;
+}
+.btn:active{ transform: translateY(1px); }
+.btn-primary{
+  background: linear-gradient(180deg, rgba(var(--lp-primary-rgb),1) 0%, rgb(48, 111, 163) 95%);
+  border-color: rgba(var(--lp-primary-rgb),.9);
+  box-shadow: 0 6px 14px rgba(var(--lp-primary-rgb), .25);
+}
+.btn-primary:hover{ box-shadow: 0 10px 22px rgba(var(--lp-primary-rgb), .28); }
+.btn-outline-primary{
+  border-style: dashed;
+  border-color: rgba(var(--lp-primary-rgb),.6);
+  color: rgb(var(--lp-primary-rgb));
+}
+.btn-outline-secondary{ border-style: dashed; }
+
+/* “Chip” look used across pages */
+.chip, .fp-chip.btn{
+  border-radius: 999px; border-style: dashed;
+}
+
+/* ---------- Badges ---------- */
+.badge.text-bg-success{ background: rgba(var(--lp-success-rgb),.15) !important; color:#047857 !important; }
+.badge.text-bg-warning{ background: rgba(var(--lp-amber-rgb),.2) !important; color:#92400e !important; }
+.badge.text-bg-info{ background: rgba(59,130,246,.16) !important; color:#1d4ed8 !important; }
+.badge.text-bg-secondary{ background: rgba(2,6,23,.12) !important; color:#111827 !important; }
+.badge.text-bg-danger{ background: rgba(239,68,68,.2) !important; color: #1b2599 !important; }
+
+/* ---------- Modals ---------- */
+.modal-content{
+  border-radius: var(--lp-radius);
+  border: 1px solid rgba(var(--lp-border), .08);
+  box-shadow: 0 30px 60px rgba(2,6,23,.25);
+}
+.modal-header{
+  border-bottom: 1px solid rgba(var(--lp-border), .06);
+  background:
+    linear-gradient(135deg,
+      rgba(var(--lp-primary-rgb), .06) 0%,
+      rgba(var(--lp-success-rgb), .06) 100%);
+}
+
+/* ---------- Page headers / hero stripes ---------- */
+.fp-head, .lp-cta, .card-header{
+  border-radius: var(--lp-radius);
+  background:
+    linear-gradient(135deg,
+      rgba(var(--lp-primary-rgb), .08) 0%,
+      rgba(var(--lp-success-rgb), .08) 100%);
+  border: 1px solid rgba(var(--lp-border), .06);
+}
+
+/* ---------- Find Parking (list view) polish ---------- */
+.fp-table tbody td{ vertical-align: middle; }
+.fp-price{ color: rgb(var(--lp-primary-rgb)); font-weight: 700; }
+
+/* ---------- Map legend chips (map page) ---------- */
+.legend-item{ color: var(--lp-ink-2); }
+.chip{ border:1px solid rgba(var(--lp-border), .15); box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); }
+
+/* ---------- Toast (if you call window.toast) ---------- */
+.toastify{
+  position: fixed; right: 16px; bottom: 16px; z-index: 1080;
+  display:flex; gap:.6rem; align-items:center;
+  padding:.7rem .9rem; color:#0b1220; background:#fff;
+  border:1px solid rgba(var(--lp-border), .08);
+  border-radius: .75rem; box-shadow: var(--lp-soft-shadow-lg);
+}
+.toastify.error{ color:#991b1b; background:#fff5f5; border-color: rgba(239,68,68,.25); }
+
+/* ---------- Small utilities ---------- */
+.card-ghost{ background: rgba(255,255,255,.6); backdrop-filter: blur(6px); }
+.soft-sep{ height:1px; background: linear-gradient(90deg, transparent, rgba(var(--lp-border), .08), transparent); }
+
+/* ---------- Tables: compact mode for audit/users/slots ---------- */
+.table.table-sm td, .table.table-sm th{ padding:.45rem .65rem; }
+
+/* ---------- Footer ---------- */
+footer{ background: #ffffff; border-top: 1px solid rgba(var(--lp-border), .06); }

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Audit Logs')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'logs')}">
+<section class="container-fluid py-3">
+    <h1 class="h3 mb-3"><i class="bi bi-shield-lock me-2"></i>Audit Logs</h1>
+
+    <!-- Filters -->
+    <div class="card mb-3 shadow-sm border-0">
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-sm-3">
+                    <label class="form-label">From</label>
+                    <input id="fFrom" type="datetime-local" class="form-control">
+                </div>
+                <div class="col-sm-3">
+                    <label class="form-label">To</label>
+                    <input id="fTo" type="datetime-local" class="form-control">
+                </div>
+                <div class="col-sm-2">
+                    <label class="form-label">Action</label>
+                    <input id="fAction" class="form-control" placeholder="LOGIN, RESERVE...">
+                </div>
+                <div class="col-sm-2">
+                    <label class="form-label">User</label>
+                    <input id="fUser" class="form-control" placeholder="email/username">
+                </div>
+                <div class="col-sm-2">
+                    <label class="form-label">Status</label>
+                    <input id="fStatus" class="form-control" placeholder="200, 401, ...">
+                </div>
+                <div class="col-auto">
+                    <button id="btnSearch" class="btn btn-primary"><i class="bi bi-search me-1"></i>Search</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th>When</th><th>User</th><th>Action</th><th>Status</th><th>Method</th><th>Path</th><th>IP</th>
+                    </tr>
+                    </thead>
+                    <tbody id="logsBody">
+                    <!-- SSR: render first page so page is not blank -->
+                    <tr th:each="a : ${page?.content}">
+                        <td th:text="${#temporals.format(a.ts, 'yyyy-MM-dd HH:mm:ss')}">2025-01-01 10:00:00</td>
+                        <td th:text="${a.username}">user@example.com</td>
+                        <td th:text="${a.action}">LOGIN</td>
+                        <td th:text="${a.status}">200</td>
+                        <td th:text="${a.method}">GET</td>
+                        <td th:text="${a.path}">/reservations</td>
+                        <td th:text="${a.ip}">127.0.0.1</td>
+                    </tr>
+                    <tr th:if="${page == null || #lists.isEmpty(page.content)}">
+                        <td colspan="7" class="text-center text-muted py-3">No logs yet.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pager -->
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <div class="small text-muted" th:if="${page != null}">
+                    Showing <span th:text="${page.number * page.size + 1}">1</span> –
+                    <span th:text="${page.number * page.size + page.numberOfElements}">10</span> of
+                    <span th:text="${page.totalElements}">0</span>
+                </div>
+                <div>
+                    <button id="prevBtn" class="btn btn-sm btn-outline-secondary me-2">Prev</button>
+                    <button id="nextBtn" class="btn btn-sm btn-outline-secondary">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    const qs = new URLSearchParams(location.search);
+    let page = parseInt(qs.get('page') || '0', 10);
+    let size = parseInt(qs.get('size') || '20', 10);
+
+    function toIsoLocal(v){ return v ? new Date(v).toISOString() : null; }
+
+    async function load() {
+      const params = new URLSearchParams();
+      params.set('page', page);
+      params.set('size', size);
+
+      const from = document.getElementById('fFrom').value;
+      const to   = document.getElementById('fTo').value;
+      const action = document.getElementById('fAction').value?.trim();
+      const user   = document.getElementById('fUser').value?.trim();
+      const status = document.getElementById('fStatus').value?.trim();
+
+      if (from)  params.set('from', new Date(from).toISOString());
+      if (to)    params.set('to',   new Date(to).toISOString());
+      if (action)   params.set('action', action);
+      if (user)     params.set('username', user);
+      if (status)   params.set('status', status);
+
+      try {
+        const data = await api.get('/api/audit/logs?' + params.toString());
+        const tbody = document.getElementById('logsBody');
+        tbody.innerHTML = '';
+
+        if (!data || !data.content || data.content.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No matching logs.</td></tr>';
+          return;
+        }
+
+        for (const a of data.content) {
+          const tr = document.createElement('tr');
+          tr.innerHTML =
+            `<td>${escapeHtml(a.ts ?? '')}</td>
+             <td>${escapeHtml(a.username ?? '')}</td>
+             <td>${escapeHtml(a.action ?? '')}</td>
+             <td>${escapeHtml(a.status ?? '')}</td>
+             <td>${escapeHtml(a.method ?? '')}</td>
+             <td>${escapeHtml(a.path ?? '')}</td>
+             <td>${escapeHtml(a.ip ?? '')}</td>`;
+          tbody.appendChild(tr);
+        }
+      } catch (e) {
+        toast('Failed to load logs: ' + e.message, false);
+      }
+    }
+
+    document.getElementById('btnSearch').addEventListener('click', () => { page = 0; load(); });
+    document.getElementById('prevBtn').addEventListener('click', () => { if (page > 0) { page--; load(); }});
+    document.getElementById('nextBtn').addEventListener('click', () => { page++; load(); });
+
+    // Enhance after SSR paints
+    document.addEventListener('DOMContentLoaded', () => {
+      // If SSR had no content or you changed filters, call API.
+      load();
+    });
+</script>
+</body>
+</html>

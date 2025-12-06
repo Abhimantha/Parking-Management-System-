@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Register')}"></head>
+<body>
+<div class="container py-5" style="max-width: 560px;">
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <h1 class="h4 mb-3 text-center">Create your account</h1>
+
+            <div th:if="${param.err}" class="alert alert-danger" th:text="${param.err}">Something went wrong</div>
+            <div th:if="${param.msg}" class="alert alert-success" th:text="${param.msg}">Success</div>
+
+            <form method="post" th:action="@{/register}">
+                <div class="mb-3">
+                    <label class="form-label">Username</label>
+                    <input class="form-control" name="username" th:value="${user?.username}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input class="form-control" type="email" name="email" th:value="${user?.email}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Phone (optional)</label>
+                    <input class="form-control" name="phone" th:value="${user?.phone}" placeholder="+94 71 234 5678">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">NIC Number (optional)</label>
+                    <input class="form-control" name="nicNumber" th:value="${user?.nicNumber}" placeholder="NIC / National ID">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Car Model (optional)</label>
+                    <input class="form-control" name="carModel" th:value="${user?.carModel}" placeholder="e.g., Toyota Aqua">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Car Plate (optional)</label>
+                    <input class="form-control" name="carPlate" th:value="${user?.carPlate}" placeholder="e.g., ABC-1234">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <input class="form-control" type="password" name="password" minlength="6" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Role (optional)</label>
+                    <select class="form-select" name="role">
+                        <option value="DRIVER" selected>DRIVER</option>
+                        <option value="MANAGER">MANAGER</option>
+                        <option value="ADMIN">ADMIN</option>
+                    </select>
+                </div>
+
+                <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+                <button class="btn btn-primary w-100" type="submit">Register</button>
+            </form>
+
+            <div class="text-center mt-3">
+                <a th:href="@{/login}">Already have an account? Sign in</a>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:src="@{/js/main.js}"></script>
+</body>
+</html>

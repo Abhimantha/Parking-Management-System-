@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Find Parking')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'find')}">
+<section>
+
+    <!-- Page-scoped styles (soft, Bootstrap-variable driven) -->
+    <style>
+        /* page header with a very subtle gradient stripe that matches the site */
+        .fp-head {
+          border-radius: .75rem;
+          background:
+            linear-gradient(135deg,
+              rgba(var(--bs-primary-rgb), .08) 0%,
+              rgba(var(--bs-success-rgb), .08) 100%);
+          border: 1px solid rgba(2,6,23,.06);
+        }
+        .fp-kicker { letter-spacing:.12em; font-weight:600; color: rgba(var(--bs-primary-rgb), .95); }
+
+        /* cards consistent with rest of site */
+        .fp-card {
+          border: 1px solid rgba(2,6,23,.06);
+          border-radius: 1rem;
+          background: #fff;
+          box-shadow: 0 10px 28px rgba(2,6,23,.06);
+        }
+        .fp-card:hover { box-shadow: 0 14px 36px rgba(2,6,23,.09); }
+
+        .fp-label { font-weight:600; letter-spacing:.01em; }
+
+        /* quick chips aligned with Bootstrap look */
+        .fp-chip.btn {
+          border-style: dashed;
+          --bs-btn-padding-y: .25rem;
+          --bs-btn-padding-x: .7rem;
+          --bs-btn-font-size: .85rem;
+          border-radius: 999px;
+        }
+
+        /* table polish that blends with Bootstrap */
+        .fp-table thead th { white-space: nowrap; }
+        .fp-table tbody tr:hover { background: rgba(var(--bs-primary-rgb), .04); }
+        .fp-price { font-weight: 700; color: rgb(var(--bs-primary-rgb)); }
+
+        /* small helper for empty state */
+        .fp-empty {
+          color: #6b7280;
+          display:flex; align-items:center; gap:.6rem;
+        }
+    </style>
+
+    <!-- Title row -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h1 class="h3 m-0"><i class="bi bi-search me-2"></i>Find Parking</h1>
+    </div>
+
+    <!-- Subtle header with form -->
+    <div class="fp-head p-4 p-md-5 mb-3">
+        <div class="row g-4 align-items-end">
+            <div class="col-lg-7">
+                <div class="fp-kicker mb-2"><i class="bi bi-lightning-charge me-1"></i> Live availability</div>
+                <h2 class="h4 fw-bold mb-1">Search slots & reserve instantly</h2>
+                <div class="text-muted">Pick a lot, level and time window — we’ll show price and availability in real time.</div>
+            </div>
+            <div class="col-lg-5">
+                <div class="bg-white rounded-3 p-3 fp-card card-lift">
+                    <!-- form IDs & structure preserved -->
+                    <form id="availabilityForm" class="row g-3" autocomplete="off" role="search">
+                        <div class="col-md-6">
+                            <label class="form-label fp-label">Lot</label>
+                            <select id="lotSelect" class="form-select">
+                                <option value="">All lots</option>
+                                <option th:each="l : ${lots}"
+                                        th:value="${l.id}"
+                                        th:selected="${selectedLotId} == ${l.id}"
+                                        th:text="${l.name} ?: (${l.label} ?: ${l})">Lot</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fp-label">Level</label>
+                            <select id="levelSelect" class="form-select">
+                                <option value="">All levels</option>
+                                <option th:each="v : ${levels}"
+                                        th:value="${v.id}"
+                                        th:selected="${selectedLevelId} == ${v.id}"
+                                        th:text="${v.name} ?: (${v.code} ?: (${v.label} ?: ${v}))">Level</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fp-label">Start</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
+                                <input id="startInput" class="form-control" type="datetime-local" th:value="${startStr}">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fp-label">End</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-calendar2-check"></i></span>
+                                <input id="endInput" class="form-control" type="datetime-local" th:value="${endStr}">
+                            </div>
+                        </div>
+
+                        <!-- quick ranges -->
+                        <div class="col-12 d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-outline-secondary fp-chip" onclick="setRange(1)">+1h</button>
+                            <button type="button" class="btn btn-outline-secondary fp-chip" onclick="setRange(2)">+2h</button>
+                            <button type="button" class="btn btn-outline-secondary fp-chip" onclick="setRange(4)">+4h</button>
+                            <button type="button" class="btn btn-outline-secondary fp-chip" onclick="setRange(8)">+8h</button>
+                        </div>
+
+                        <div class="col-12">
+                            <button id="checkBtn" type="button" class="btn btn-primary w-100">
+                                <span class="spinner-border spinner-border-sm me-2 d-none" id="btnSpin"></span>
+                                Check availability
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="mt-3">
+        <div class="fp-card p-4">
+            <div class="fp-empty">
+                <i class="bi bi-info-circle"></i>
+                Use the form above to find available slots for your time window.
+            </div>
+        </div>
+    </div>
+
+    <!-- Reserve POST form (unchanged) -->
+    <form id="reserveForm" th:action="@{/find-parking/reserve}" method="post" class="d-none">
+        <input type="hidden" name="slotId"/>
+        <input type="hidden" name="start"/>
+        <input type="hidden" name="end"/>
+        <input type="hidden" name="lotId"/>
+        <input type="hidden" name="levelId"/>
+        <input type="hidden" name="promo"/>
+        <input type="hidden"
+               th:name="${_csrf?.parameterName} ?: '_csrf'"
+               th:value="${_csrf?.token} ?: ''"/>
+    </form>
+
+    <!-- Promo modal (unchanged) -->
+    <div class="modal fade" id="promoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Apply promo (optional)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <div class="text-muted small mb-1">Selected window</div>
+                        <div id="pmWhen" class="fw-semibold">—</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="text-muted small mb-1">Current price</div>
+                        <div id="pmBase" class="fs-5">—</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Promo code</label>
+                        <div class="input-group">
+                            <input id="pmCode" class="form-control" placeholder="e.g. WEEKEND10">
+                            <button class="btn btn-outline-primary" type="button" onclick="pmApply()">Apply</button>
+                        </div>
+                        <div id="pmMsg" class="small mt-1 text-muted"></div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="text-muted small mb-1">Total with promo</div>
+                        <div id="pmTotal" class="fs-4 fw-semibold">—</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="pmSkip" type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Skip & Reserve</button>
+                    <button id="pmReserve" type="button" class="btn btn-primary" onclick="pmReserve()">Apply & Reserve</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div th:if="${msg}" class="alert alert-success mt-3" th:text="${msg}">Done</div>
+    <div th:if="${err}" class="alert alert-danger mt-3" th:text="${err}">Something went wrong</div>
+
+    <!-- Script: same logic + tiny helper (setRange) -->
+    <script>
+        const lotSel = document.getElementById('lotSelect');
+        const levelSel = document.getElementById('levelSelect');
+        const startInput = document.getElementById('startInput');
+        const endInput = document.getElementById('endInput');
+        const checkBtn = document.getElementById('checkBtn');
+        const btnSpin = document.getElementById('btnSpin');
+        const results = document.getElementById('results');
+        const reserveForm = document.getElementById('reserveForm');
+
+        let pm = { slotId: null, start: null, end: null, modal: null };
+
+        function setBtnLoading(loading){
+          checkBtn.disabled = loading;
+          btnSpin.classList.toggle('d-none', !loading);
+        }
+
+        function setRange(hours){
+          if(!startInput.value){ startInput.value = defaultLocal(0); }
+          const start = new Date(startInput.value);
+          const end = new Date(start.getTime() + (hours*60*60*1000));
+          const two = n => String(n).padStart(2,'0');
+          endInput.value = `${end.getFullYear()}-${two(end.getMonth()+1)}-${two(end.getDate())}T${two(end.getHours())}:${two(end.getMinutes())}`;
+        }
+
+        function stripZone(s){ return s ? s.replace(/Z$/,'').replace(/[+-]\d\d:?\d\d$/,'') : s; }
+        function localToIso(localValue){
+          if (!localValue) return '';
+          const d = new Date(localValue);
+          const two = n => String(n).padStart(2,'0');
+          return `${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())}T${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`;
+        }
+        function escapeHtml(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>' :'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+        function escapeAttr(s){ return String(s ?? '').replace(/["'\\]/g, c => ({'"':'&quot;','\'':'&#39;','\\':'\\\\'}[c])); }
+
+        async function fetchJson(url){
+          const res = await fetch(url, { headers: { 'Accept':'application/json' }});
+          if(!res.ok) throw new Error(await res.text());
+          return res.json();
+        }
+        async function loadLots(){
+          try{
+            const data = await fetchJson('/api/lots');
+            if(Array.isArray(data) && data.length){
+              const sel = lotSel.value || '';
+              lotSel.innerHTML = '<option value="">All lots</option>' +
+                data.map(l => `<option value="${l.id}">${escapeHtml(l.name ?? ('Lot #'+l.id))}</option>`).join('');
+              if(sel) lotSel.value = sel;
+            }
+          }catch(e){ console.warn('Lots API failed', e); }
+        }
+        async function loadLevels(){
+          try{
+            const lotId = lotSel.value;
+            const data = await fetchJson(lotId ? `/api/levels?lotId=${encodeURIComponent(lotId)}` : '/api/levels');
+            if(Array.isArray(data) && data.length){
+              const sel = levelSel.value || '';
+              levelSel.innerHTML = '<option value="">All levels</option>' +
+                data.map(v => `<option value="${v.id}">${escapeHtml(v.name ?? ('Level #'+v.id))}</option>`).join('');
+              if(sel) levelSel.value = sel;
+            }
+          }catch(e){ console.warn('Levels API failed', e); }
+        }
+
+        async function checkAvailability(){
+          setBtnLoading(true);
+          results.innerHTML = '';
+          try{
+            const startIso = localToIso(startInput.value);
+            const endIso   = localToIso(endInput.value);
+
+            const qs = new URLSearchParams();
+            if (lotSel.value)   qs.set('lotId', lotSel.value);
+            if (levelSel.value) qs.set('levelId', levelSel.value);
+            if (startIso) { qs.set('start', startIso);   qs.set('startAt', startIso); }
+            if (endIso)   { qs.set('end', endIso);       qs.set('endAt', endIso); }
+
+            const data = await fetchJson('/api/availability?' + qs.toString());
+            renderResults(data, startIso, endIso);
+          }catch(e){
+            results.innerHTML = `<div class="fp-card p-4"><div class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>${escapeHtml(e.message)}</div></div>`;
+          }finally{
+            setBtnLoading(false);
+          }
+        }
+
+        function renderResults(items, startIso, endIso){
+          if(!Array.isArray(items) || items.length === 0){
+            results.innerHTML = '<div class="fp-card p-4"><div class="fp-empty"><i class="bi bi-clipboard-x"></i>No available slots for the selected window.</div></div>';
+            return;
+          }
+          const rows = items.map(r => {
+            const s = stripZone(r.startAt ?? '');
+            const e = stripZone(r.endAt ?? '');
+            return `
+            <tr>
+              <td>${escapeHtml(r.code ?? ('Slot #'+r.id))}</td>
+              <td>${escapeHtml(r.lot ?? r.lotName ?? '')}</td>
+              <td>${escapeHtml(r.level ?? r.levelName ?? '')}</td>
+              <td><span class="badge rounded-pill text-bg-info">${escapeHtml(r.status ?? 'AVAILABLE')}</span></td>
+              <td class="text-muted">${escapeHtml(r.startAt ?? '')}</td>
+              <td class="text-muted">${escapeHtml(r.endAt ?? '')}</td>
+              <td><span id="price-${r.id}" class="fp-price">—</span></td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-primary" onclick="reserveSlot('${r.id}','${escapeAttr(s)}','${escapeAttr(e)}')">
+                  Reserve
+                </button>
+              </td>
+            </tr>`;
+          }).join('');
+          results.innerHTML = `
+            <div class="fp-card">
+              <div class="table-responsive">
+                <table class="table fp-table align-middle mb-0">
+                  <thead class="table-light">
+                    <tr><th>Slot</th><th>Lot</th><th>Level</th><th>Status</th><th>From (UTC)</th><th>To (UTC)</th><th>Price</th><th></th></tr>
+                  </thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </div>
+            </div>`;
+          items.forEach(r => quotePrice(r.id, stripZone(startIso || r.startAt), stripZone(endIso || r.endAt)));
+        }
+
+        async function quotePrice(slotId, startIso, endIso){
+          const el = document.getElementById(`price-${slotId}`);
+          if(!el || !startIso || !endIso) return;
+          try{
+            const qs = new URLSearchParams({slotId: String(slotId), start: stripZone(startIso), end: stripZone(endIso)});
+            const q = await fetchJson('/api/pricing/quote?' + qs.toString());
+            el.textContent = q?.total != null ? Number(q.total).toFixed(2) : '—';
+          }catch(e){ el.textContent = '—'; }
+        }
+
+        // promo flow (unchanged)
+        window.reserveSlot = function(slotId, isoStart, isoEnd){
+          pm.slotId = slotId;
+          pm.start  = stripZone(isoStart && isoStart.length ? isoStart : localToIso(startInput.value));
+          pm.end    = stripZone(isoEnd   && isoEnd.length   ? isoEnd   : localToIso(endInput.value));
+
+          document.getElementById('pmWhen').textContent = `${pm.start} → ${pm.end}`;
+          document.getElementById('pmCode').value = '';
+          const msg = document.getElementById('pmMsg');
+          msg.textContent = '';
+          msg.classList.remove('text-danger');
+          document.getElementById('pmTotal').textContent = '—';
+
+          pmQuote('');
+          if (!pm.modal) pm.modal = new bootstrap.Modal(document.getElementById('promoModal'));
+          pm.modal.show();
+        };
+        async function pmQuote(code){
+          try {
+            const qs = new URLSearchParams({ slotId: pm.slotId, start: pm.start, end: pm.end });
+            if (code && code.trim()) qs.set('promo', code.trim());
+            const res = await fetch('/api/pricing/quote?' + qs.toString(), { headers: { 'Accept':'application/json' }});
+            if (res.ok) {
+              const q = await res.json();
+              document.getElementById('pmBase').textContent  = q?.base  != null ? Number(q.base).toFixed(2)  : '—';
+              document.getElementById('pmTotal').textContent = q?.total != null ? Number(q.total).toFixed(2) : '—';
+              return q;
+            }
+          } catch (_) {}
+          return null;
+        }
+        window.pmApply = async function(){
+          const code = document.getElementById('pmCode').value.trim();
+          const msg  = document.getElementById('pmMsg');
+          msg.textContent = '';
+          msg.classList.remove('text-danger');
+          const q = await pmQuote(code);
+          if (code) {
+            const anyPromo = q && Array.isArray(q.adjustments) && q.adjustments.some(a => a.kind === 'PROMO');
+            msg.textContent = anyPromo ? 'Promo applied.' : 'Code not applicable for this slot/time.';
+            msg.classList.toggle('text-danger', !anyPromo);
+            msg.classList.toggle('text-muted',  anyPromo);
+          }
+        };
+        window.pmReserve = function(){
+          const f = reserveForm;
+          f.elements['slotId'].value = pm.slotId;
+          f.elements['start'].value  = pm.start;
+          f.elements['end'].value    = pm.end;
+          f.elements['lotId'].value   = lotSel.value || '';
+          f.elements['levelId'].value = levelSel.value || '';
+          const code = document.getElementById('pmCode').value.trim();
+          if (f.elements['promo']) f.elements['promo'].value = code || '';
+          pm.modal?.hide();
+          f.submit();
+        };
+        document.getElementById('pmSkip')?.addEventListener('click', ()=>{
+          const f = reserveForm;
+          f.elements['slotId'].value = pm.slotId;
+          f.elements['start'].value  = pm.start;
+          f.elements['end'].value    = pm.end;
+          f.elements['lotId'].value   = lotSel.value || '';
+          f.elements['levelId'].value = levelSel.value || '';
+          if (f.elements['promo']) f.elements['promo'].value = '';
+          f.submit();
+        });
+
+        lotSel.addEventListener('change', loadLevels);
+        checkBtn.addEventListener('click', () => checkAvailability());
+
+        (async function init(){
+          if(!startInput.value) startInput.value = defaultLocal(0);
+          if(!endInput.value)   endInput.value   = defaultLocal(2);
+          await loadLots(); await loadLevels();
+        })();
+        function defaultLocal(h){
+          const dt = new Date();
+          dt.setHours(dt.getHours()+h);
+          dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());
+          return dt.toISOString().slice(0,16);
+        }
+    </script>
+
+</section>
+</body>
+</html>

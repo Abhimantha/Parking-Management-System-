@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Find Parking')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'map')}">
+<section>
+    <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
+        <div>
+            <h1 class="h3 m-0">Find Parking</h1>
+            <div class="text-muted small">Pick a location, set a time window, and choose an available slot.</div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <select id="lotSelect" class="form-select">
+                <option value="">All Lots</option>
+            </select>
+            <select id="levelSelect" class="form-select">
+                <option value="">All Levels</option>
+            </select>
+            <input id="startAt" type="datetime-local" class="form-control">
+            <input id="endAt" type="datetime-local" class="form-control">
+            <button class="btn btn-primary" id="btnCheck">Check availability</button>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body d-flex align-items-center gap-3 flex-wrap">
+            <div class="legend-item"><span class="chip chip-available"></span> Available</div>
+            <div class="legend-item"><span class="chip chip-reserved"></span> Reserved</div>
+            <div class="legend-item"><span class="chip chip-maintenance"></span> Maintenance</div>
+            <div class="legend-item"><span class="chip chip-ev"></span> EV</div>
+            <div class="legend-item"><span class="chip chip-large"></span> Large</div>
+            <div class="legend-item"><span class="chip chip-compact"></span> Compact</div>
+        </div>
+    </div>
+
+    <div id="mapContainer" class="map-container">
+        <!-- grid renders here -->
+    </div>
+
+    <!-- Reserve modal -->
+    <div class="modal fade" id="reserveModal" tabindex="-1">
+        <div class="modal-dialog">
+            <form class="modal-content" onsubmit="submitReservation(event)">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reserve Slot <span id="reserveSlotLabel"></span></h5>
+                    <button class="btn-close" type="button" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body row g-3">
+                    <input type="hidden" id="reserveSlotId">
+                    <div class="col-12">
+                        <label class="form-label">Start</label>
+                        <input id="reserveStart" type="datetime-local" class="form-control" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">End</label>
+                        <input id="reserveEnd" type="datetime-local" class="form-control" required>
+                    </div>
+                    <div class="col-12" id="reserveUserWrap" style="display:none;">
+                        <label class="form-label">Reserve for user</label>
+                        <select id="reserveUserId" class="form-select"></select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Confirm Reservation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+</body>
+</html>
+
+<style>
+    .map-container {
+      width: 100%;
+      overflow: auto;
+      background: var(--bs-body-bg);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.05);
+    }
+    .map-grid {
+      display: grid;
+      grid-gap: 8px;
+      grid-auto-flow: dense;
+      /* grid template set dynamically */
+    }
+    .slot {
+      width: 56px; height: 36px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .8rem; font-weight: 600;
+      cursor: pointer; user-select: none;
+      border: 1px solid transparent;
+    }
+    .slot.compact { background: #eef5ff; }
+    .slot.large   { background: #f1f0ff; }
+    .slot.ev      { background: #e7fff0; }
+
+    .slot.available { outline: 2px solid #198754; }
+    .slot.reserved  { outline: 2px solid #ffc107; cursor: not-allowed; opacity: .6; }
+    .slot.maint     { outline: 2px solid #6c757d; cursor: not-allowed; opacity: .5; }
+
+    .slot:hover { border-color: rgba(0,0,0,.15); }
+
+    .legend-item { display:flex; align-items:center; gap:.5rem; }
+    .chip { width:18px; height:12px; border-radius:4px; display:inline-block; border:1px solid rgba(0,0,0,.15); }
+    .chip-available { background:#d1f7e6; }
+    .chip-reserved  { background:#ffe8a3; }
+    .chip-maintenance{ background:#e6e6e6; }
+    .chip-ev        { background:#e7fff0; }
+    .chip-large     { background:#f1f0ff; }
+    .chip-compact   { background:#eef5ff; }
+</style>
+
+<script>
+    let me, role, reserveModal;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      reserveModal = new bootstrap.Modal('#reserveModal');
+
+      // load current user
+      me = await api.get('/api/me');
+      role = me.role;
+
+      // defaults: now to +2h
+      const now = new Date();
+      const in2h = new Date(now.getTime() + 2*3600*1000);
+      byId('startAt').value = toLocalInputValue(now.toISOString());
+      byId('endAt').value   = toLocalInputValue(in2h.toISOString());
+
+      // populate lot/level from all slots (client-side derive)
+      const all = await api.get('/api/slots'); // GET allowed to all roles
+      const lots = [...new Set(all.map(s => s.lot).filter(Boolean))];
+      const levels = [...new Set(all.map(s => s.level).filter(Boolean))];
+      byId('lotSelect').innerHTML = `<option value="">All Lots</option>` + lots.map(l => `<option>${escapeHtml(l)}</option>`).join('');
+      byId('levelSelect').innerHTML = `<option value="">All Levels</option>` + levels.map(l => `<option>${escapeHtml(l)}</option>`).join('');
+
+      byId('btnCheck').addEventListener('click', renderMap);
+
+      // If admin/manager, load users for "reserve for" feature
+      if (role === 'ADMIN' || role === 'MANAGER') {
+        try {
+          const users = await api.get('/api/users');
+          byId('reserveUserWrap').style.display = '';
+          byId('reserveUserId').innerHTML = users.map(u => `<option value="${u.id}">${escapeHtml(u.username)} (${escapeHtml(u.email)})</option>`).join('');
+        } catch(e) { /* non-admin won't reach here */ }
+      }
+
+      // initial render
+      await renderMap();
+    });
+
+    async function renderMap() {
+      const lot = val('lotSelect') || null;
+      const level = val('levelSelect') || null;
+      const start = fromLocalInputValue(val('startAt'));
+      const end = fromLocalInputValue(val('endAt'));
+      if (!start || !end) { toast('Pick a valid time range'); return; }
+
+      const params = new URLSearchParams({ start, end });
+      if (lot)   params.append('lot', lot);
+      if (level) params.append('level', level);
+      const data = await api.get(`/api/availability?${params.toString()}`);
+
+      // compute grid size
+const hasCoords = data.some(s => (s.mapRow && s.mapCol));
+const cols = hasCoords
+  ? Math.max(...data.map(s => s.mapCol || 1))
+  : Math.min(12, Math.max(6, Math.ceil(Math.sqrt(data.length))*2)); // sensible default
+
+const grid = document.createElement('div');
+grid.className = 'map-grid';
+grid.style.gridTemplateColumns = `repeat(${cols}, 56px)`; // rows auto
+
+data.forEach(s => {
+  const el = document.createElement('div');
+  const typeClass = s.type === 'EV' ? 'ev' : (s.type === 'LARGE' ? 'large' : 'compact');
+  const statClass = s.status === 'MAINTENANCE' ? 'maint' : (s.available ? 'available' : 'reserved');
+  el.className = `slot ${typeClass} ${statClass}`;
+  if (s.mapRow && s.mapCol) {              // <— only place when coords exist
+    el.style.gridRow = s.mapRow;
+    el.style.gridColumn = s.mapCol;
+  }
+  el.title = `${s.slotNumber} (${s.type})`;
+  el.textContent = s.slotNumber;
+  if (statClass === 'available') el.addEventListener('click', () => openReserve(s));
+  grid.appendChild(el);
+});
+
+const container = byId('mapContainer');
+container.innerHTML = '';
+container.appendChild(grid);
+
+
+    function openReserve(slot) {
+      byId('reserveSlotId').value = slot.id;
+      byId('reserveSlotLabel').textContent = slot.slotNumber;
+      // prefill from filters
+      byId('reserveStart').value = val('startAt');
+      byId('reserveEnd').value   = val('endAt');
+      reserveModal.show();
+    }
+
+    async function submitReservation(e) {
+      e.preventDefault();
+      const slotId = val('reserveSlotId');
+      const start = fromLocalInputValue(val('reserveStart'));
+      const end   = fromLocalInputValue(val('reserveEnd'));
+      if (!start || !end) { toast('Pick a valid time range'); return; }
+
+      let url, body = { startTime: start, endTime: end, status: 'ACTIVE' };
+
+      if (role === 'ADMIN' || role === 'MANAGER') {
+        const userId = val('reserveUserId');
+        if (!userId) { toast('Select a user'); return; }
+        url = `/api/reservations?userId=${userId}&slotId=${slotId}`;
+      } else {
+        // DRIVER: backend will force to current user
+        url = `/api/reservations?slotId=${slotId}`;
+      }
+
+      try {
+        await api.post(url, body);
+toast('Reservation confirmed!');
+try { new BroadcastChannel('reservations').postMessage('changed'); } catch (_) {}
+reserveModal.hide();
+await renderMap();
+
+      } catch (err) {
+        toast('Failed: ' + (err.message || 'server error'));
+      }
+    }
+</script>

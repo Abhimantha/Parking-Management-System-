@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Slots')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'slots')}">
+<section>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h1 class="h3 m-0">Slot Management</h1>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#slotModal" onclick="openSlotModal()">Add Slot</button>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                    <tr>
+                        <th>#</th><th>Slot</th><th>Level</th><th>Type</th><th>Status</th><th class="text-end">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody id="slotRows"><tr><td colspan="6">Loading…</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="slotModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" onsubmit="saveSlot(event)">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="slotModalTitle">Add Slot</h5>
+                    <button class="btn-close" type="button" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body row g-3">
+                    <input type="hidden" id="slotId">
+                    <div class="col-12">
+                        <label class="form-label">Slot Number</label>
+                        <input id="slotNumber" class="form-control" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Level</label>
+                        <input id="level" class="form-control" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Type</label>
+                        <select id="type" class="form-select" required>
+                            <option>COMPACT</option><option>LARGE</option><option>EV</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Status</label>
+                        <select id="status" class="form-select" required>
+                            <option>AVAILABLE</option><option>RESERVED</option><option>MAINTENANCE</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+</body>
+</html>
+
+<script>
+    let slotModal;
+    document.addEventListener('DOMContentLoaded', async () => {
+      slotModal = new bootstrap.Modal('#slotModal');
+      await loadSlots();
+    });
+
+    async function loadSlots() {
+      // Use computed endpoint so ACTIVE reservations show as RESERVED
+      const data = await api.get('/api/slots/current');
+      byId('slotRows').innerHTML = (data && data.length ? data.map(s => `
+        <tr>
+          <td>${s.id}</td>
+          <td>${escapeHtml(s.slotNumber)}</td>
+          <td>${escapeHtml(s.level)}</td>
+          <td><span class="badge text-bg-secondary">${s.type}</span></td>
+          <td><span class="badge ${statusBadge(s.status)}">${s.status}</span></td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary me-2" onclick='editSlot(${JSON.stringify(s)})'>Edit</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="removeSlot(${s.id})">Delete</button>
+          </td>
+        </tr>
+      `).join('') : `<tr><td colspan="6">No slots yet</td></tr>`);
+    }
+
+    function statusBadge(st) {
+      return st === 'AVAILABLE' ? 'text-bg-success'
+           : st === 'RESERVED'  ? 'text-bg-warning'
+                                 : 'text-bg-dark';
+    }
+
+    function openSlotModal() {
+      byId('slotModalTitle').textContent = 'Add Slot';
+      ['slotId','slotNumber','level'].forEach(id => byId(id).value = '');
+      byId('type').value = 'COMPACT';
+      byId('status').value = 'AVAILABLE';
+      slotModal.show();
+    }
+
+    function editSlot(s) {
+      byId('slotModalTitle').textContent = 'Edit Slot';
+      byId('slotId').value = s.id;
+      byId('slotNumber').value = s.slotNumber;
+      byId('level').value = s.level;
+      byId('type').value = s.type;
+      // IMPORTANT: prefill with the stored DB status, not the computed one
+      byId('status').value = s.dbStatus || s.status;
+      slotModal.show();
+    }
+
+    async function saveSlot(e) {
+      e.preventDefault();
+      const dto = {
+        slotNumber: val('slotNumber'),
+        level: val('level'),
+        type: val('type'),
+        status: val('status')
+      };
+      const id = val('slotId');
+      if (id) await api.put(`/api/slots/${id}`, dto);
+      else    await api.post('/api/slots', dto);
+      toast('Saved!');
+      slotModal.hide();
+      await loadSlots();
+    }
+
+    async function removeSlot(id) {
+      if (!confirm('Delete this slot?')) return;
+      await api.delete(`/api/slots/${id}`);
+      toast('Deleted');
+      await loadSlots();
+    }
+</script>

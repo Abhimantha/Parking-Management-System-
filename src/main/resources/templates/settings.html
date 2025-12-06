@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('System Settings')}"></head>
+<body th:replace="~{fragments/layout :: layout(~{::section}, 'settings')}">
+<section>
+    <h1 class="h3 mb-3"><i class="bi bi-gear-wide-connected me-2"></i>System Settings</h1>
+
+    <!-- Feedback (works with redirect:/settings?msg=... or ?err=...) -->
+    <div th:if="${param.msg}" class="alert alert-success" th:text="${param.msg}"></div>
+    <div th:if="${param.err}" class="alert alert-danger" th:text="${param.err}"></div>
+
+    <form class="card shadow-sm border-0 card-lift" method="post" th:action="@{/settings}">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <!-- Hidden “false” inputs ensure an explicit value is always sent -->
+                    <input type="hidden" name="enableReservations" value="false"/>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="enableReservations" value="true"
+                               th:checked="${settings.enableReservations}">
+                        <label class="form-check-label">Enable reservations</label>
+                    </div>
+
+                    <input type="hidden" name="enablePayments" value="false"/>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="enablePayments" value="true"
+                               th:checked="${settings.enablePayments}">
+                        <label class="form-check-label">Enable payments</label>
+                    </div>
+
+                    <input type="hidden" name="allowCancellation" value="false"/>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="allowCancellation" value="true"
+                               th:checked="${settings.allowCancellation}">
+                        <label class="form-check-label">Allow cancellations</label>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <input type="hidden" name="requireCancellationReason" value="false"/>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="requireCancellationReason" value="true"
+                               th:checked="${settings.requireCancellationReason}">
+                        <label class="form-check-label">Require cancellation reason</label>
+                    </div>
+
+                    <input type="hidden" name="showReportsToDrivers" value="false"/>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="showReportsToDrivers" value="true"
+                               th:checked="${settings.showReportsToDrivers}">
+                        <label class="form-check-label">Show reports to drivers</label>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label">Refund window (hours)</label>
+                        <input class="form-control" type="number" min="0" name="refundWindowHours"
+                               th:value="${settings.refundWindowHours}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-footer bg-light d-flex justify-content-end">
+            <!-- CSRF for form POST -->
+            <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button class="btn btn-primary px-4" type="submit">
+                <i class="bi bi-check2 me-1"></i> Save
+            </button>
+        </div>
+    </form>
+</section>
+</body>
+</html>
